@@ -31,7 +31,7 @@ Duas páginas, com papéis diferentes — o mesmo desenho da Pauta Thutor:
 |---|---|---|
 | Endereço | [`22647cdb…`](https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b) | [`wynb9t4n9w-png.github.io/Busca-Editais-FG/`](https://wynb9t4n9w-png.github.io/Busca-Editais-FG/) |
 | Quem abre | só quem tem acesso na conta Claude | qualquer pessoa com o link |
-| Acompanhamento comercial | editável, protegido por senha | não existe |
+| Acompanhamento comercial | editável, no banco do artifact | não existe |
 | Papel | **fonte da verdade** | espelho somente-leitura |
 
 Um edital é informação pública por definição: publicá-lo não vaza nada. Já o
@@ -39,6 +39,13 @@ que a Thutor está fazendo com ele, sim. `status: "participando"`, ou uma nota
 dizendo quem é o contato dentro do órgão, é o funil comercial da casa. Por isso
 o espelho perde `auth`, `status`, `nota` e a aba Acompanhamento, e
 `tools/teste_pagina.py` falha se algum deles atravessar.
+
+Desde 03/09/2026 esses dois campos nem chegam a passar pelo HTML: eles vivem no
+**banco do artifact**, sob a regra `{read: "interact", write: "admin"}` — quem
+consegue abrir o radar lê, só quem tem permissão de edição escreve, e é o
+servidor que decide. O espelho público não tem como alcançá-los, porque no
+GitHub Pages não existe `window.claude`. O sanitizador virou defesa em
+profundidade, não a única linha.
 
 A visibilidade do repositório não entra nessa conta, e é importante entender por
 quê antes de contar com ela. Um site do GitHub Pages é servido **público de
@@ -213,12 +220,20 @@ A rodada é recusada, com saída 1, quando:
 foi o que aconteceu na camada 2 do dia 03/09: nove fontes visitadas, cinco
 abertas, zero candidatos. O que não passa é rodada sem varredura.
 
-### O que a coleta nunca sobrescreve
+### O que a coleta não tem como sobrescrever
 
-`status` e `nota` são de quem trabalha o funil. A rotina só escreve
-`status: "novo"` em edital que ainda não existia; num que já está no radar, ela
-atualiza valor, prazo e veredito e não encosta nesses dois campos. Sobrescrevê-
-los apagaria análise que não volta.
+`status` e `nota` são de quem trabalha o funil, e a primeira versão os guardava
+no próprio estado, com uma instrução no prompt da rotina mandando não tocar
+neles. Instrução se esquece — e bastava uma rodada distraída para apagar
+semanas de análise.
+
+Hoje eles vivem no banco do artifact. A varredura das 02:00 reescreve a página
+inteira todo dia e, estruturalmente, não alcança o banco: não é que ela não
+deva: é que não há caminho. O validador guarda a fronteira pelo outro lado, e
+reprova a rodada que escrever `status`, `nota` ou `auth` de volta no estado.
+
+Uma regra de prompt virou um fato da arquitetura, e é a única classe de
+proteção que sobrevive a quem não leu o prompt.
 
 ## Testes
 
@@ -261,11 +276,13 @@ definição. Ela sai com `<meta name="robots" content="noindex,nofollow">`, ent�
 não aparece em buscadores, mas quem tiver o link vê tudo. O acompanhamento
 comercial não vai para lá; veja *Como funciona*.
 
-**Sobre a senha do artifact.** Ela protege menos do que aparenta, e é melhor
-saber disso do que confiar. O estado inteiro vai embutido no HTML da página, de
-modo que quem consegue abrir o artifact já tem `status` e `nota` no
-código-fonte, com senha ou sem. O portão impede edição acidental, não leitura.
-O controle de acesso real é quem tem acesso ao artifact: artifacts são privados
-por padrão e compartilhados pessoa a pessoa. Para um gate de verdade, os dois
-campos precisariam sair do HTML e viver na capacidade `db`, com regra por nível
-de compartilhamento — o que muda a arquitetura da página.
+**Sobre o acesso ao acompanhamento.** Houve uma senha aqui, e ela era teatro: o
+estado inteiro viajava embutido no HTML, então quem abria o artifact já tinha
+`status` e `nota` no código-fonte, com senha ou sem. O portão impedia edição
+desatenta, nunca leitura.
+
+Hoje o gate é real e do servidor. A capacidade `db` restringe leitura a quem tem
+o artifact e escrita a quem tem permissão de edição; um campo que o visitante
+não pode ler não chega ao navegador dele. Em troca, o artifact passa a ser
+**interno à organização e não pode ser compartilhado publicamente** — o que,
+para um funil comercial, é a troca certa.

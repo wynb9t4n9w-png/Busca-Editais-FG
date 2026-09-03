@@ -202,15 +202,21 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 /* O HTML original, antes de qualquer render. É a base para republicar: o
    estado vive dentro da própria página, e salvar significa reescrever o miolo
    entre /*DADOS*/ /*e*/ /*FIM*/ /*e publicar o arquivo inteiro de novo. */
-var PRISTINE = document.documentElement.outerHTML;
-
 var estado;
 try { estado = JSON.parse(document.getElementById("dados").textContent.replace(/^\/\*DADOS\*\//,"").replace(/\/\*FIM\*\/$/,"")); }
 catch(e){ estado = {versao:1, editais:[], rodadas:[]}; }
 estado.editais = estado.editais || [];
 estado.rodadas = estado.rodadas || [];
 
-var artifact = null, podePublicar = false, autorizado = false, sujo = false;
+/* O acompanhamento comercial NÃO vive nesta página. Ele vive no banco do
+   artifact, e chega aqui pela assinatura do PASSO de partida. Consequência que
+   vale registrar: a rotina das 02:00 reescreve este HTML inteiro todo dia e,
+   estruturalmente, não tem como encostar em status ou nota. Antes isso era uma
+   instrução no prompt da rotina — instrução se esquece; arquitetura, não. */
+var db = null, podeEscrever = true, acomp = {}, dbPronto = false, dbErro = null;
+
+function statusDe(e){ return (acomp[e.id] && acomp[e.id].status) || "novo"; }
+function notaDe(e){ return (acomp[e.id] && acomp[e.id].nota) || ""; }
 
 var FRENTES = {
   cultura:"Cultura", estrategia:"Estratégia", lideranca:"Liderança",
@@ -282,7 +288,7 @@ function cartao(e, comStatus){
       '</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+
         '<span class="tag '+esc(e.veredito||"frio")+'">'+esc(e.veredito||"frio")+'</span>'+
-        (comStatus && e.status && e.status!=="novo" ? '<span class="st '+esc(e.status)+'">'+esc(STATUS[e.status]||e.status)+'</span>' : '')+
+        (comStatus && statusDe(e)!=="novo" ? '<span class="st '+esc(statusDe(e))+'">'+esc(STATUS[statusDe(e)]||statusDe(e))+'</span>' : '')+
       '</div>'+
     '</div>'+
     (e.justificativa ? '<div class="ed-just">'+esc(e.justificativa)+'</div>' : '')+
@@ -298,14 +304,15 @@ function cartao(e, comStatus){
       '<a class="btn-a btn-ghost btn-sm" href="'+esc(e.link)+'" target="_blank" rel="noopener">Abrir edital</a>'+
       '<span class="small mono" style="margin-left:auto">'+esc(e.fonte||"")+'</span>'+
     '</div>'+
-    (comStatus && e.nota ? '<div class="small" style="margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)"><b>Nota:</b> '+esc(e.nota)+'</div>' : '')+
+    (comStatus && notaDe(e) ? '<div class="small" style="margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)"><b>Nota:</b> '+esc(notaDe(e))+'</div>' : '')+
   '</article>';
 }
 
 /* ---------- RADAR ---------- */
 function renderRadar(){
   var abertos = estado.editais.filter(function(e){
-    return aberto(e) && e.status!=="descartado" && e.status!=="perdido";
+    var st = statusDe(e);
+    return aberto(e) && st!=="descartado" && st!=="perdido";
   });
   var quentes = abertos.filter(function(e){ return e.veredito==="quente"; });
   var mornos  = abertos.filter(function(e){ return e.veredito==="morno"; });
@@ -342,12 +349,12 @@ function renderRadar(){
     if(quentes.length){
       corpo += '<div class="card"><h3 style="color:var(--quente-i)">Quentes — '+quentes.length+'</h3>'+
         '<p class="small">Aderência direta ao portfólio da Thutor, prazo em aberto e porte compatível com o ticket mínimo.</p>'+
-        quentes.map(function(e){ return cartao(e, autorizado); }).join("")+'</div>';
+        quentes.map(function(e){ return cartao(e, dbPronto); }).join("")+'</div>';
     }
     if(mornos.length){
       corpo += '<div class="card"><h3 style="color:var(--morno-i)">Mornos — '+mornos.length+'</h3>'+
         '<p class="small">Tema adjacente, porte menor ou escopo ainda impreciso. Vale o olho, não necessariamente a proposta.</p>'+
-        mornos.map(function(e){ return cartao(e, autorizado); }).join("")+'</div>';
+        mornos.map(function(e){ return cartao(e, dbPronto); }).join("")+'</div>';
     }
   }
   el("p-radar").innerHTML = corpo;
@@ -357,7 +364,8 @@ function renderRadar(){
 function renderPrazos(){
   var lista = estado.editais.filter(function(e){
     var d = diasAte(e.encerramento);
-    return d!==null && d>=0 && d<=45 && e.status!=="descartado" && e.status!=="perdido";
+    var st = statusDe(e);
+    return d!==null && d>=0 && d<=45 && st!=="descartado" && st!=="perdido";
   }).sort(function(a,b){ return diasAte(a.encerramento)-diasAte(b.encerramento); });
 
   var corpo = '<h2><span class="t">Prazos dos próximos 45 dias</span></h2>'+
@@ -378,7 +386,7 @@ function renderPrazos(){
       var g = lista.filter(function(e){ return f[1](diasAte(e.encerramento)); });
       if(!g.length) return;
       corpo += '<div class="card"><h3>'+esc(f[0])+' — '+g.length+'</h3>'+
-        g.map(function(e){ return cartao(e, autorizado); }).join("")+'</div>';
+        g.map(function(e){ return cartao(e, dbPronto); }).join("")+'</div>';
     });
   }
   el("p-prazos").innerHTML = corpo;
@@ -433,7 +441,7 @@ function renderArquivo(){
           '<td><b>'+esc((e.orgao||"").slice(0,44))+'</b><br><span class="small">'+esc([e.municipio,e.uf].filter(Boolean).join(" · "))+'</span></td>'+
           '<td style="min-width:280px">'+esc((e.objeto||"").slice(0,190))+((e.objeto||"").length>190?"…":"")+
             '<br><span class="tag '+esc(e.veredito||"frio")+'" style="margin-top:5px">'+esc(e.veredito||"frio")+'</span>'+
-            (autorizado && e.status && e.status!=="novo" ? ' <span class="st '+esc(e.status)+'">'+esc(STATUS[e.status]||e.status)+'</span>' : '')+'</td>'+
+            (statusDe(e)!=="novo" ? ' <span class="st '+esc(statusDe(e))+'">'+esc(STATUS[statusDe(e)]||statusDe(e))+'</span>' : '')+'</td>'+
           '<td>'+tagsFrentes(e)+'</td>'+
           '<td class="num">'+esc(dinheiro(e.valor))+'</td>'+
           '<td class="prazo '+classePrazo(d)+'">'+esc(textoPrazo(d))+'</td>'+
@@ -492,116 +500,150 @@ function renderCobertura(){
   el("p-cobertura").innerHTML = corpo;
 }
 
-/* ---------- ACOMPANHAMENTO (área restrita) ---------- */
-/* O que se edita aqui — status e nota — é a única coisa no estado que a coleta
-   NUNCA sobrescreve. A rotina das 02:00 só escreve status "novo" em edital que
-   ainda não existia; tudo que alguém marcou fica como está. */
+/* ---------- ACOMPANHAMENTO ---------- */
+/* Aqui havia uma senha, e ela era teatro. O estado inteiro viajava embutido no
+   HTML, então quem abria o artifact já tinha status e nota no código-fonte —
+   com senha ou sem. O portão impedia edição desatenta, nunca leitura.
 
-function digest(usuario, senha){
-  var a = estado.auth || {};
-  var txt = (a.salt||"") + "|" + usuario + "|" + senha;
-  if(!(window.crypto && window.crypto.subtle)) return Promise.resolve(null);
-  return window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt)).then(function(buf){
-    return Array.prototype.map.call(new Uint8Array(buf), function(b){
-      return ("0"+b.toString(16)).slice(-2); }).join("");
-  });
+   Agora os dois campos vivem no banco do artifact, sob a regra
+   {read: "interact", write: "admin"}: quem consegue abrir a página lê, e só
+   quem tem permissão de edição escreve. O servidor é que decide, e um campo que
+   o viewer não pode ler simplesmente não chega ao navegador dele. */
+
+function docAcomp(id){ return db.doc("acompanhamento/" + id); }
+
+/* Grava com espera: digitar numa nota dispara um evento por tecla, e cada
+   escrita é uma chamada de rede. Meio segundo depois da última tecla basta. */
+var pendentes = {}, timers = {};
+function gravar(id){
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(function(){
+    var corpo = pendentes[id];
+    if(!corpo || !db) return;
+    delete pendentes[id];
+    corpo.atualizado_em = new Date().toISOString();
+    docAcomp(id).set(corpo)["catch"](function(err){
+      var c = err && err.code;
+      if(c === "invalid_argument"){
+        /* É assim que a recusa por permissão chega: sem código próprio, de
+           propósito — quem não pode escrever não descobre o que existe. */
+        podeEscrever = false; renderAcompanhamento();
+        toast("Você tem acesso de leitura neste radar. As marcações não foram salvas.");
+      } else if(c === "resource_exhausted"){
+        toast("Muitas alterações de uma vez. Espere alguns segundos e tente de novo.");
+      } else if(c === "revoked"){
+        podeEscrever = false; toast("Seu acesso a este radar mudou. Recarregue a página.");
+      } else {
+        toast("Não foi possível salvar. Tente de novo em alguns segundos.");
+      }
+    });
+  }, 500);
 }
 
-function renderPortao(msg){
-  el("p-acompanhamento").innerHTML =
-    '<h2><span class="t">Área restrita</span></h2>'+
-    '<div class="portao">'+
-      '<div class="cad"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"></rect>'+
-      '<path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></div>'+
-      '<p class="small">O acompanhamento comercial — em que estágio está cada edital e as anotações '+
-      'da equipe — fica atrás de senha. O radar e os prazos são abertos.</p>'+
-      '<div class="campos">'+
-        '<div class="field"><label for="usr">Usuário</label><input type="text" id="usr" autocomplete="username"></div>'+
-        '<div class="field"><label for="pwd">Senha</label><input type="password" id="pwd" autocomplete="current-password"></div>'+
-        '<button class="btn" id="btEntrar" style="width:100%">Entrar</button>'+
-        '<div class="erro" id="errLogin">'+esc(msg||"")+'</div>'+
-      '</div>'+
-    '</div>';
-  function tentar(){
-    var u = el("usr").value.trim(), s = el("pwd").value;
-    var a = estado.auth || {};
-    if(!a.hash){ el("errLogin").textContent = "Nenhuma senha configurada ainda neste radar."; return; }
-    digest(u, s).then(function(h){
-      if(h && h === a.hash && u === a.usuario){ autorizado = true; renderAcompanhamento(); }
-      else { el("errLogin").textContent = "Usuário ou senha incorretos."; el("pwd").value=""; }
-    });
-  }
-  el("btEntrar").addEventListener("click", tentar);
-  el("pwd").addEventListener("keydown", function(e){ if(e.key==="Enter") tentar(); });
+function marcar(id, campo, valor){
+  var atual = acomp[id] || {};
+  var corpo = pendentes[id] || {status: atual.status || "novo", nota: atual.nota || ""};
+  corpo[campo] = valor;
+  pendentes[id] = corpo;
+  acomp[id] = {status: corpo.status, nota: corpo.nota};  /* eco otimista */
+  gravar(id);
 }
 
 function renderAcompanhamento(){
-  if(!autorizado){ renderPortao(); return; }
+  var alvo = el("p-acompanhamento");
+
+  if(dbErro){
+    alvo.innerHTML = '<h2><span class="t">Acompanhamento comercial</span></h2>'+
+      '<div class="card"><div class="vazio"><b>Não foi possível abrir o acompanhamento</b>'+
+      esc(dbErro)+'</div></div>';
+    return;
+  }
+  if(!db){
+    alvo.innerHTML = '<h2><span class="t">Acompanhamento comercial</span></h2>'+
+      '<div class="card"><div class="vazio"><b>Disponível só no artifact</b>'+
+      'O estágio de cada edital e as anotações da equipe ficam no banco do artifact, '+
+      'que o espelho público não alcança. Abra o radar pelo artifact para trabalhar o funil.</div></div>';
+    return;
+  }
+  if(!dbPronto){
+    alvo.innerHTML = '<h2><span class="t">Acompanhamento comercial</span></h2>'+
+      '<div class="card"><div class="vazio"><b>Carregando…</b>Buscando as marcações da equipe.</div></div>';
+    return;
+  }
 
   var lista = estado.editais.slice().sort(function(a,b){
-    var pa = (a.status && a.status!=="novo") ? 0 : 1, pb = (b.status && b.status!=="novo") ? 0 : 1;
+    var pa = statusDe(a)!=="novo" ? 0 : 1, pb = statusDe(b)!=="novo" ? 0 : 1;
     if(pa!==pb) return pa-pb;
-    var da=diasAte(a.encerramento), db=diasAte(b.encerramento);
-    if(da===null) da=9999; if(db===null) db=9999;
-    return da-db;
+    var da=diasAte(a.encerramento), db_=diasAte(b.encerramento);
+    if(da===null) da=9999; if(db_===null) db_=9999;
+    return da-db_;
   });
 
   var porStatus = {};
-  estado.editais.forEach(function(e){ var s=e.status||"novo"; porStatus[s]=(porStatus[s]||0)+1; });
+  estado.editais.forEach(function(e){ var st=statusDe(e); porStatus[st]=(porStatus[st]||0)+1; });
 
   var corpo = '<h2><span class="t">Acompanhamento comercial</span></h2>'+
-    (podePublicar ? '' : '<div class="warn">Você está numa cópia somente-leitura: dá para marcar, mas não dá para salvar.</div>')+
+    (podeEscrever
+      ? '<div class="hint">As marcações salvam sozinhas e aparecem para todo mundo que tem o radar. '+
+        'A varredura das 02:00 não alcança este painel — ela reescreve a página, não o banco.</div>'
+      : '<div class="warn">Você tem acesso de leitura: dá para acompanhar o funil, não para alterá-lo.</div>')+
     '<div class="qgrid">'+
-      Object.keys(STATUS).slice(0,5).map(function(s){
-        return '<div class="stat"><b>'+(porStatus[s]||0)+'</b><span>'+esc(STATUS[s])+'</span></div>';
+      Object.keys(STATUS).slice(0,5).map(function(st){
+        return '<div class="stat"><b>'+(porStatus[st]||0)+'</b><span>'+esc(STATUS[st])+'</span></div>';
       }).join("")+
     '</div>'+
     '<div class="card">'+
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
-        '<button class="btn" id="btSalvar"'+(podePublicar?'':' disabled')+'>Salvar acompanhamento</button>'+
-        '<button class="btn-ghost btn-sm" id="btSair">Sair</button>'+
-        '<span class="small" style="margin-left:auto">Status e nota nunca são sobrescritos pela coleta.</span>'+
-      '</div>'+
-      lista.map(function(e, i){
-        var d = diasAte(e.encerramento);
+      lista.map(function(e){
+        var d = diasAte(e.encerramento), st = statusDe(e);
         return '<div class="edital v-'+esc(e.veredito||"frio")+(d!==null&&d<0?" encerrado":"")+'">'+
           '<div class="ed-orgao">'+esc(e.orgao||"")+' — '+esc([e.municipio,e.uf].filter(Boolean).join(" · "))+'</div>'+
-          '<div class="ed-objeto">'+esc((e.objeto||"").slice(0,240))+'</div>'+
+          '<div class="ed-objeto">'+esc(resumo(e.objeto, 240))+'</div>'+
           '<div class="ed-meta" style="margin-bottom:12px">'+
             '<span><b>'+esc(dinheiro(e.valor))+'</b></span>'+
             '<span class="tag '+esc(e.veredito||"frio")+'">'+esc(e.veredito||"frio")+'</span>'+
             '<span class="prazo '+classePrazo(d)+'">'+esc(textoPrazo(d))+'</span>'+
             '<a href="'+esc(e.link)+'" target="_blank" rel="noopener">abrir edital</a>'+
           '</div>'+
-          '<div class="field"><label for="st'+i+'">Estágio</label>'+
-            '<select id="st'+i+'" data-i="'+i+'" class="selStatus">'+
-              Object.keys(STATUS).map(function(s){
-                return '<option value="'+s+'"'+((e.status||"novo")===s?" selected":"")+'>'+esc(STATUS[s])+'</option>';
-              }).join("")+
-            '</select></div>'+
-          '<div class="field"><label for="nt'+i+'">Nota interna</label>'+
-            '<textarea id="nt'+i+'" data-i="'+i+'" class="txtNota" placeholder="Quem é o contato, o que falta, por que vale ou não vale">'+esc(e.nota||"")+'</textarea></div>'+
+          '<div class="grid2">'+
+            '<div class="field"><label for="st-'+esc(e.id)+'">Estágio</label>'+
+              '<select id="st-'+esc(e.id)+'" data-id="'+esc(e.id)+'" class="selStatus"'+
+                (podeEscrever?'':' disabled')+'>'+
+                Object.keys(STATUS).map(function(k){
+                  return '<option value="'+k+'"'+(st===k?" selected":"")+'>'+esc(STATUS[k])+'</option>';
+                }).join("")+
+              '</select></div>'+
+            '<div class="field"><label for="nt-'+esc(e.id)+'">Nota interna</label>'+
+              '<textarea id="nt-'+esc(e.id)+'" data-id="'+esc(e.id)+'" class="txtNota"'+
+                (podeEscrever?'':' readonly')+
+                ' placeholder="Quem é o contato, o que falta, por que vale ou não vale">'+
+                esc(notaDe(e))+'</textarea></div>'+
+          '</div>'+
         '</div>';
       }).join("")+
     '</div>';
 
-  el("p-acompanhamento").innerHTML = corpo;
+  alvo.innerHTML = corpo;
+  if(!podeEscrever) return;
 
-  /* A ordenação da tela não é a do estado, então o índice do formulário guarda
-     o id do edital, não a posição no array. */
-  Array.prototype.forEach.call(document.querySelectorAll(".selStatus"), function(s){
-    s.addEventListener("change", function(){
-      lista[+this.dataset.i].status = this.value; sujo = true;
-    });
+  Array.prototype.forEach.call(alvo.querySelectorAll(".selStatus"), function(n){
+    n.addEventListener("change", function(){ marcar(this.dataset.id, "status", this.value); });
   });
-  Array.prototype.forEach.call(document.querySelectorAll(".txtNota"), function(t){
-    t.addEventListener("input", function(){
-      lista[+this.dataset.i].nota = this.value; sujo = true;
-    });
+  Array.prototype.forEach.call(alvo.querySelectorAll(".txtNota"), function(n){
+    n.addEventListener("input", function(){ marcar(this.dataset.id, "nota", this.value); });
   });
-  el("btSair").addEventListener("click", function(){ autorizado=false; renderPortao("Sessão encerrada."); });
-  var bs = el("btSalvar");
-  if(bs) bs.addEventListener("click", function(){ salvar(); });
+}
+
+/* Redesenha as abas que mostram estágio quando o banco muda — inclusive por
+   escrita de outra pessoa. O painel aberto só se redesenha se ninguém estiver
+   digitando nele, senão o cursor pula no meio da frase. */
+function aplicarAcomp(){
+  if(!el("p-radar").hidden) renderRadar();
+  else if(!el("p-prazos").hidden) renderPrazos();
+  else if(!el("p-arquivo").hidden) renderArquivo();
+  else if(!el("p-acompanhamento").hidden){
+    var foco = document.activeElement;
+    if(!foco || !foco.classList || !foco.classList.contains("txtNota")) renderAcompanhamento();
+  }
 }
 
 /* ---------- NAVEGAÇÃO ---------- */
@@ -626,46 +668,48 @@ Array.prototype.forEach.call(document.querySelectorAll(".topbar nav button"), fu
   t.addEventListener("click", function(){ irPara(t.dataset.p); });
 });
 
-/* ---------- PUBLICAÇÃO ---------- */
-function serializar(){
-  var json = JSON.stringify(estado, null, 1).replace(/<\/script/gi, "<\\/script");
-  return PRISTINE.replace(
-    /(<script type="application\/json" id="dados">)[\s\S]*?(<\/script>)/,
-    function(m, a, b){ return a + "/*DADOS*/" + json + "/*FIM*/" + b; }
-  );
-}
-
-function salvar(){
-  if(!artifact){ toast("Editor indisponível — recarregue a página."); return; }
-  var b = el("btSalvar");
-  if(b){ b.disabled = true; b.textContent = "Salvando…"; }
-  estado.atualizado_em = new Date().toISOString();
-  artifact.publish(serializar()).then(function(){
-    sujo = false;
-    if(b){ b.disabled = false; b.textContent = "Salvar acompanhamento"; }
-    toast("Acompanhamento salvo. A rodada de amanhã preserva estas marcações.");
-  })["catch"](function(err){
-    var c = err && err.code;
-    if(c === "conflict"){ toast("Outra pessoa salvou primeiro — recarregue para pegar a versão dela."); return; }
-    if(c === "not_granted" || c === "not_writer"){ podePublicar = false; renderAcompanhamento(); toast("Você não tem permissão de edição nesta cópia."); return; }
-    if(b){ b.disabled = false; b.textContent = "Salvar acompanhamento"; }
-    toast("Não foi possível salvar. Tente de novo em alguns segundos.");
-  });
-}
-
-window.addEventListener("beforeunload", function(e){ if(sujo){ e.preventDefault(); e.returnValue = ""; } });
-
 /* ---------- PARTIDA ---------- */
+/* Não há mais publicação a partir da página. Ela é somente-leitura sobre o
+   próprio HTML: quem reescreve o radar é a varredura das 02:00, e o que a
+   equipe marca vai para o banco. Um caminho de escrita a menos é um jeito a
+   menos de a página se corromper sozinha. */
+
 renderRadar();
 el("carimbo").textContent = estado.atualizado_em
   ? "Última rodada " + new Date(estado.atualizado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
   : "Aguardando a primeira rodada";
 
+/* O banco chega depois — nunca na primeira execução deste script, e sem ordem
+   garantida em relação ao DOMContentLoaded. Por isso a página já renderiza
+   inteira sem ele, e o acompanhamento acende quando (e se) ele responder.
+   No espelho público do GitHub Pages não há window.claude, e é exatamente
+   assim que deve ser: lá o funil comercial não existe. */
 if(window.claude && typeof window.claude.use === "function"){
-  window.claude.use("artifact").then(function(a){
-    artifact = a; podePublicar = !!a;
-    if(!el("p-acompanhamento").hidden) renderAcompanhamento();
-  })["catch"](function(){ podePublicar = false; });
+  window.claude.use("db").then(function(d){
+    db = d;
+    if(!db){ renderAcompanhamentoSeVisivel(); return; }
+    db.collection("acompanhamento").onSnapshot(function(snap){
+      var mapa = {};
+      snap.docs.forEach(function(doc){
+        var v = doc.data() || {};
+        mapa[doc.id] = {status: v.status || "novo", nota: v.nota || ""};
+      });
+      acomp = mapa;
+      dbPronto = true;
+      aplicarAcomp();
+    }, function(err){
+      var c = err && err.code;
+      dbErro = (c === "revoked")
+        ? "Seu acesso a este radar mudou enquanto a página estava aberta. Recarregue."
+        : "O acompanhamento não pôde ser carregado (" + esc(c || "erro") + ").";
+      dbPronto = false;
+      renderAcompanhamentoSeVisivel();
+    });
+  })["catch"](function(){ db = null; renderAcompanhamentoSeVisivel(); });
+}
+
+function renderAcompanhamentoSeVisivel(){
+  if(!el("p-acompanhamento").hidden) renderAcompanhamento();
 }
 })();
 </script>

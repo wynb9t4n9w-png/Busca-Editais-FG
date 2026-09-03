@@ -44,7 +44,7 @@ Cron em UTC: `0 5 * * *`
 > Chame a ferramenta Artifact com `action:"read"` e a URL do artifact. O HTML
 > retornado contém um bloco
 > `<script type="application/json" id="dados">/*DADOS*/{...}/*FIM*/</script>`.
-> Extraia e parseie esse JSON: `{versao, atualizado_em, auth, editais, rodadas}`.
+> Extraia e parseie esse JSON: `{versao, atualizado_em, editais, rodadas}`.
 > **Guarde o caminho do arquivo HTML salvo** — os passos seguintes precisam dele.
 >
 > NÃO republique sem ter lido antes; a publicação é recusada.
@@ -131,9 +131,11 @@ Cron em UTC: `0 5 * * *`
 > `visto_em` com a data de hoje.
 >
 > - Edital que **já existe** no estado (mesmo `id`): atualize `valor`,
->   `encerramento`, `situacao`, `score` e `veredito`, e **NUNCA toque em `status`
->   nem em `nota`**. Esses dois campos são de quem trabalha o funil; sobrescrevê-
->   los apaga análise que não volta.
+>   `encerramento`, `situacao`, `score` e `veredito`.
+> - **Não escreva `status`, `nota` nem `auth` em lugar nenhum do estado.** Esses
+>   campos foram movidos para o banco do artifact, com regra de permissão do
+>   servidor; a rotina reescreve a página, não o banco, e por isso não tem como
+>   alcançá-los. O validador reprova se voltarem.
 > - Edital `frio` com `score` abaixo de 30 não entra no radar: conte-o em
 >   `triados` e em `descartados`, e siga. Guardar vinte deles por dia enche o
 >   estado de coisa que ninguém relê.
@@ -156,14 +158,14 @@ Cron em UTC: `0 5 * * *`
 >    "triados": 0, "novos": 0, "descartados": 0}}
 > ```
 >
-> Atualize `estado["atualizado_em"]`. **NÃO altere `estado["auth"]`.**
+> Atualize `estado["atualizado_em"]`.
 > Os números da cobertura precisam ser VERDADEIROS. Não os invente para passar
 > no validador.
 >
 > ### PASSO 6 — Validar antes de publicar
 > Escreva o HTML lido num arquivo chamado EXATAMENTE `busca-editais-fg.html`,
-> dentro do repositório (está no `.gitignore` de propósito: carrega `auth`,
-> `status` e `nota`, e NUNCA pode ser commitado). Substitua APENAS o miolo entre
+> dentro do repositório (está no `.gitignore` porque é a fonte do artifact e não
+> deve divergir do que foi publicado). Substitua APENAS o miolo entre
 > `/*DADOS*/` e `/*FIM*/`, com um script Python e regex. Escape `</script` como
 > `<\/script`.
 >
@@ -181,8 +183,10 @@ Cron em UTC: `0 5 * * *`
 >
 > ### PASSO 7 — Publicar o artifact
 > Chame a ferramenta Artifact com `file_path=busca-editais-fg.html`, a URL do
-> artifact e `label` no formato `rodada-DD-MM-AAAA`. Não passe `favicon`,
-> `title` nem `capabilities`. Se for recusada, responda começando com `FALHA:` e
+> artifact e `label` no formato `rodada-DD-MM-AAAA`. **Não passe `capabilities`**
+> — omiti-lo carrega adiante a declaração guardada (`db`, com a regra de
+> permissão do acompanhamento); enviá-la errada revoga o banco e apaga o acesso
+> da equipe ao funil. Também não passe `favicon` nem `title`. Se for recusada, responda começando com `FALHA:` e
 > diga o motivo exato.
 >
 > ### PASSO 8 — Atualizar o espelho público
@@ -196,7 +200,7 @@ Cron em UTC: `0 5 * * *`
 > git push origin <branch padrão>
 > ```
 > Use `git add docs/index.html`, **nunca** `git add -A`: o `busca-editais-fg.html`
-> com `auth`, `status` e `nota` está no mesmo diretório. Se o `teste_pagina.py`
+> e o `candidatos.json` estão no mesmo diretório e não são versionados. Se o `teste_pagina.py`
 > reprovar, NÃO faça commit — ele também confere vazamento de campo interno.
 > Sem mudança no arquivo, não force commit vazio.
 >
@@ -257,8 +261,7 @@ indistinguível de uma que deu certo.
 > publique, responda com `FALHA:` e cole a saída. Se os três passarem, commit em
 > `docs/index.html` apenas, e push com até 4 tentativas em espera crescente.
 >
-> **NÃO** altere os scripts de `tools/`, **NÃO** edite o validador e **NÃO** mexa
-> em `estado["auth"]`, `status` ou `nota`.
+> **NÃO** altere os scripts de `tools/` e **NÃO** edite o validador.
 >
 > **PASSO 4 — Fechar.** No máximo 4 linhas: se o espelho já estava em dia ou se
 > precisou reparo, a data da rodada, quantos quentes há em aberto, e o link

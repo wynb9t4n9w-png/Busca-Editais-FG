@@ -6,22 +6,21 @@ O artifact é a fonte da verdade: é lá que o acompanhamento comercial é edita
 e onde a senha vive. Esta versão pública é um espelho somente-leitura, servido
 pelo GitHub Pages num endereço fixo.
 
-O QUE SAI, E POR QUÊ ISSO IMPORTA MAIS AQUI DO QUE NA PAUTA THUTOR:
+O QUE SAI:
 
 Um edital é informação pública por definição — publicá-lo não vaza nada. Mas o
-que a Thutor está fazendo com ele, não. "Participando", "proposta enviada", ou
-uma nota dizendo quem é o contato dentro do órgão, é o funil comercial da casa;
-num repositório público, isso é o concorrente lendo o pipeline de vocês de
-graça. Por isso o espelho perde:
+que a Thutor está fazendo com ele, não. "Participando", ou uma nota dizendo quem
+é o contato dentro do órgão, é o funil comercial da casa.
 
-  - o bloco "auth" inteiro (usuário, salt e hash da senha);
-  - o campo "status" de cada edital (o estágio comercial);
-  - o campo "nota" (anotações internas da equipe);
-  - a aba Acompanhamento.
+Desde a migração para o banco do artifact, esses campos já não estão no estado —
+eles chegam ao artifact em tempo de execução, sob regra de permissão do servidor,
+e o espelho público simplesmente não tem como alcançá-los (não há window.claude
+no GitHub Pages). O sanitizador virou defesa em profundidade, não a única linha.
 
+Ele continua removendo, por lista de permissão explícita, tudo que não seja
+campo de radar, e a aba Acompanhamento, que sem banco não teria o que mostrar.
 Fica o radar: quais editais existem, por que são aderentes, quanto valem e
-quando fecham. Útil para quem precisa consultar, inofensivo para quem lê de
-fora.
+quando fecham.
 
 Uso:
     python3 tools/build_publico.py <artifact.html> [docs/index.html]
@@ -72,7 +71,10 @@ def conteudo_autoral(html: str) -> str:
 
 
 def sanitiza(estado: dict) -> dict:
-    limpo = {k: v for k, v in estado.items() if k != "auth"}
+    # Lista de permissão, nunca de proibição: um campo novo e sensível que
+    # alguém acrescente ao estado amanhã fica de fora por padrão, em vez de
+    # vazar até alguém lembrar de proibi-lo.
+    limpo = {k: v for k, v in estado.items() if k not in ("auth",)}
     limpo["editais"] = [
         {k: e[k] for k in CAMPOS_PUBLICOS if k in e}
         for e in estado.get("editais", [])

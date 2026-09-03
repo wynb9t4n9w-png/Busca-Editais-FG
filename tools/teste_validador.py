@@ -35,7 +35,6 @@ def base() -> dict:
     return {
         "versao": 1,
         "atualizado_em": HOJE.isoformat(timespec="seconds"),
-        "auth": {"usuario": "thutor", "salt": "s", "hash": "h"},
         "editais": [{
             "id": "pncp:00000000000191-1-000042-2026",
             "fonte": "PNCP",
@@ -50,7 +49,7 @@ def base() -> dict:
             "score": 84, "frentes": ["cultura"],
             "veredito": "quente",
             "justificativa": "Pesquisa de clima e cultura organizacional é a frente principal da casa.",
-            "status": "novo", "nota": "", "visto_em": HOJE.date().isoformat(),
+            "visto_em": HOJE.date().isoformat(),
         }],
         "rodadas": [{
             "data": HOJE.date().isoformat(),
@@ -114,8 +113,14 @@ def _rodada_de_ontem(e):
 def _sem_cobertura(e):
     e["rodadas"][0].pop("cobertura")
 
-def _auth_sumiu(e):
-    e.pop("auth")
+def _auth_voltou(e):
+    e["auth"] = {"usuario": "thutor", "salt": "s", "hash": "h"}
+
+def _status_no_estado(e):
+    e["editais"][0]["status"] = "participando"
+
+def _nota_no_estado(e):
+    e["editais"][0]["nota"] = "contato: fulano na diretoria"
 
 def _sem_veredito(e):
     e["editais"][0]["veredito"] = None
@@ -125,9 +130,6 @@ def _quente_sem_justificativa(e):
 
 def _id_duplicado(e):
     e["editais"].append(copy.deepcopy(e["editais"][0]))
-
-def _status_inventado(e):
-    e["editais"][0]["status"] = "em negociação"
 
 def _link_quebrado(e):
     e["editais"][0]["link"] = "pncp.gov.br/editais/42"
@@ -148,11 +150,12 @@ CASOS = [
     ("triagem deixou candidatos para trás", _triagem_incompleta, True, "nem lidos"),
     ("rodada é de ontem", _rodada_de_ontem, True, "não de hoje"),
     ("cobertura ausente", _sem_cobertura, True, "prova"),
-    ("auth sumiu do estado", _auth_sumiu, True, "senha de administrador"),
+    ("auth voltou ao estado", _auth_voltou, True, "voltou a carregar"),
+    ("status escrito no estado", _status_no_estado, True, "não pertence ao estado"),
+    ("nota escrita no estado", _nota_no_estado, True, "não pertence ao estado"),
     ("edital sem veredito", _sem_veredito, True, "veredito"),
     ("quente sem justificativa", _quente_sem_justificativa, True, "sem justificativa"),
     ("id duplicado", _id_duplicado, True, "duplicado"),
-    ("status fora da lista", _status_inventado, True, "status"),
     ("link sem esquema", _link_quebrado, True, "link inválido"),
     ("publicado no futuro", _data_no_futuro, True, "futuro"),
 ]

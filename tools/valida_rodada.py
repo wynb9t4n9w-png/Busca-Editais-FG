@@ -31,11 +31,14 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("America/Sao_Paulo")
 
 VEREDITOS = {"quente", "morno", "frio"}
-# O status é do humano, não da coleta. A rotina só escreve "novo"; qualquer
-# outro valor foi alguém que decidiu algo, e perder isso apaga trabalho de
-# análise que não volta.
-STATUS = {"novo", "analisando", "proposta", "participando", "ganho", "perdido", "descartado"}
-STATUS_HUMANO = STATUS - {"novo"}
+
+# O acompanhamento comercial — em que estágio está cada edital e as anotações da
+# equipe — NÃO vive mais no estado. Ele vive no banco do artifact, sob regra de
+# permissão do servidor. Antes o validador precisava vigiar esses campos para
+# que a coleta não os sobrescrevesse; hoje a coleta não tem como alcançá-los,
+# porque reescreve a página e não o banco. Uma instrução no prompt virou um fato
+# da arquitetura, e é por isso que estas checagens sumiram em vez de afrouxar.
+CAMPOS_PROIBIDOS = ("auth", "status", "nota")
 
 # A API do PNCP informa totalRegistros por modalidade. Se colhemos menos do que
 # ela prometeu, alguma página se perdeu — e cada página são 50 contratações que
@@ -181,8 +184,10 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
               f"(esperado um de {sorted(VEREDITOS)}). Todo edital no radar passou "
               "pela triagem — sem veredito, não passou.")
 
-    if e.get("status") not in STATUS:
-        falha(f"{onde}: status '{e.get('status')}' inválido.")
+    for campo in CAMPOS_PROIBIDOS:
+        if campo in e:
+            falha(f"{onde}: campo '{campo}' não pertence ao estado — ele vive no "
+                  "banco do artifact.")
 
     just = (e.get("justificativa") or "").strip()
     if e.get("veredito") in ("quente", "morno") and len(just) < 20:
@@ -204,19 +209,22 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
         except ValueError:
             falha(f"{onde}: publicado_em '{pub}' em formato inválido.")
 
-    # Um edital cujo prazo já passou não deveria estar como "novo": ou virou
-    # oportunidade perdida, ou foi descartado. Deixá-lo em "novo" faz o radar
-    # mentir sobre o que ainda dá para disputar.
     fim = quando(e.get("encerramento"))
-    if fim and fim.date() < hoje and e.get("status") == "novo":
-        aviso(f"{onde}: prazo encerrou em {fim.date()} e o status segue 'novo'.")
+    if fim and fim.date() < hoje - timedelta(days=180):
+        aviso(f"{onde}: prazo encerrou em {fim.date()}, há mais de seis meses. "
+              "A poda descrita em ROTINAS.md não está rodando.")
 
 
 def valida(estado: dict) -> None:
     hoje = datetime.now(TZ).date()
 
-    if not estado.get("auth"):
-        falha("o bloco 'auth' sumiu — a senha de administrador seria apagada.")
+    for campo in CAMPOS_PROIBIDOS:
+        if campo in estado:
+            falha(
+                f"o estado voltou a carregar '{campo}'. Esse campo foi movido para o "
+                "banco do artifact justamente para que a coleta não o alcançasse — "
+                "escrevê-lo aqui de novo reabre o risco de apagar análise da equipe."
+            )
 
     rodadas = estado.get("rodadas") or []
     if not rodadas:
@@ -279,11 +287,6 @@ def valida(estado: dict) -> None:
     for i, e in enumerate(editais):
         valida_edital(e, f"edital {i + 1} ({(e.get('id') or '?')[:40]})", ids, hoje)
 
-    humanos = [e for e in editais if e.get("status") in STATUS_HUMANO or (e.get("nota") or "").strip()]
-    if editais and not humanos and len(rodadas) > 5:
-        aviso("nenhum edital tem status ou anotação humana depois de várias rodadas. "
-              "Ou ninguém está usando o radar, ou a coleta está sobrescrevendo o "
-              "trabalho de análise.")
 
 
 def main() -> None:
@@ -311,10 +314,9 @@ def main() -> None:
     ext = cob.get("externas") or {}
     editais = estado.get("editais") or []
     quentes = sum(1 for e in editais if e.get("veredito") == "quente")
-    abertos = sum(1 for e in editais if e.get("status") == "novo")
 
     print(f"ok  rodada {r.get('data')} · {len(editais)} editais no radar "
-          f"({quentes} quentes, {abertos} sem triagem humana)")
+          f"({quentes} quentes)")
     print(f"    PNCP: {pncp.get('brutos', 0):,} de {pncp.get('esperados', 0):,} "
           f"contratações · {pncp.get('candidatos', 0)} candidatos")
     print(f"    externas: {ext.get('abertas', 0)}/{ext.get('tentadas', 0)} fontes "

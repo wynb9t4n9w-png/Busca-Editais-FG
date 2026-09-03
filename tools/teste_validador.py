@@ -47,6 +47,7 @@ def base() -> dict:
             "encerramento": (HOJE + timedelta(days=12)).isoformat(timespec="seconds"),
             "link": "https://pncp.gov.br/app/editais/00000000000191/2026/42",
             "score": 84, "frentes": ["cultura"], "disputa": "aberto",
+            "situacao_item": "em_disputa",
             "veredito": "quente",
             "justificativa": "Pesquisa de clima e cultura organizacional é a frente principal da casa.",
             "visto_em": HOJE.date().isoformat(),
@@ -61,7 +62,7 @@ def base() -> dict:
                          "paginas_perdidas": 0, "candidatos": 24,
                          "modalidades_falhas": [], "erros": []},
                 "externas": {"tentadas": 15, "abertas": 9, "candidatos": 2, "falhas": []},
-                "triados": 26, "novos": 12, "descartados": 14,
+                "triados": 26, "conferidos": 1, "novos": 12, "descartados": 14,
             },
         }],
     }
@@ -152,6 +153,13 @@ def _quente_com_prazo_vencido(e):
 def _sem_disputa(e):
     e["editais"][0].pop("disputa")
 
+def _sem_conferencia(e):
+    # O radar publicando a dedução da coleta como se fosse a situação real.
+    e["editais"][0].pop("situacao_item")
+
+def _conferencia_parcial(e):
+    e["rodadas"][0]["cobertura"]["conferidos"] = 0
+
 def _morno_ja_contratado(e):
     # Isto PRECISA passar: contratação decidida é inteligência de mercado
     # legítima, desde que não se venda como oportunidade.
@@ -197,6 +205,8 @@ CASOS = [
     ("quente numa contratação direta", _quente_ja_contratado, True, "ainda pode disputar"),
     ("quente com prazo vencido", _quente_com_prazo_vencido, True, "ainda pode disputar"),
     ("campo disputa ausente", _sem_disputa, True, "disputa"),
+    ("situação não conferida na fonte", _sem_conferencia, True, "conferida na fonte"),
+    ("conferência não cobriu o radar", _conferencia_parcial, True, "conferidos na fonte"),
     ("morno já contratado, com vencedor", _morno_ja_contratado, False, "ok"),
     ("edital sem veredito", _sem_veredito, True, "veredito"),
     ("quente sem justificativa", _quente_sem_justificativa, True, "sem justificativa"),

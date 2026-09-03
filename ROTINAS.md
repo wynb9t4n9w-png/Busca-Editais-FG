@@ -108,6 +108,19 @@ Cron em UTC: `0 5 * * *`
 >
 > Conte `tentadas`, `abertas`, `candidatos` e a lista `falhas`.
 >
+> ### PASSO 3.5 — Conferir a situação na fonte
+> ```
+> python3 tools/situacao.py --do-estado <html do artifact>
+> ```
+> Abre cada candidato no PNCP e lê a situação item a item. É o passo que separa
+> oportunidade de retrovisor, e ele não é opcional: medido em 03/09/2026, a
+> dedução da coleta errou **3 das 17** classificações — duas delas escondendo
+> edital ainda disputável. Grave em cada edital o `disputa` e o `situacao_item`
+> que o script devolve, e o `vencedor` quando houver.
+>
+> Conte quantos foram conferidos e registre em `cobertura.conferidos`. O
+> validador exige que o número cubra todo o radar.
+>
 > ### PASSO 4 — Triagem
 > Junte os candidatos das duas camadas. Para cada um, decida um **veredito**:
 >
@@ -140,10 +153,10 @@ Cron em UTC: `0 5 * * *`
 > 3. Dia sem nada quente é resultado legítimo. Dia sem varredura, não.
 > 4. Se o objeto estiver truncado ou ambíguo, abra o edital no link antes de
 >    decidir. Não chute para baixo: um `frio` errado desaparece para sempre.
-> 5. Para os editais com `disputa: "decidido"`, rode
->    `python3 tools/contratos.py --do-estado <html>` e grave o campo `vencedor`
->    nos que tiverem contrato localizado. Não é oportunidade perdida: é o mapa
->    de quem compra o que a Thutor vende, por quanto, e contra quem se concorre.
+> 5. `disputa: "relicita"` (deserto ou fracassado) merece atenção EXTRA, não
+>    menos: o órgão quis comprar, não conseguiu, e costuma voltar — quem já leu
+>    o edital chega na frente. Trate como oportunidade quente se o tema for
+>    aderente.
 >
 > Conte quantos você triou. **Esse número precisa ser igual ao total de
 > candidatos colhidos** — o validador confere, porque um candidato não lido pode

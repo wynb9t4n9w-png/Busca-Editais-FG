@@ -37,8 +37,10 @@ VEREDITOS = {"quente", "morno", "frio"}
 # já havia assinado com a UFSC na véspera de o extrato aparecer no PNCP.
 # Medido em 02/09/2026: 27 das 33 contratações aderentes do dia não tinham
 # janela de proposta nenhuma. O erro não era raro — era a regra.
-DISPUTA = {"aberto", "indeterminado", "decidido", "encerrado"}
-DISPUTAVEL = {"aberto", "indeterminado"}
+DISPUTA = {"aberto", "indeterminado", "decidido", "encerrado", "relicita", "cancelado"}
+# "relicita" (deserto ou fracassado) É disputável, e das melhores: o órgão quis
+# comprar, não conseguiu, e costuma voltar. Quem já leu o edital chega na frente.
+DISPUTAVEL = {"aberto", "indeterminado", "relicita"}
 
 # O acompanhamento comercial — em que estágio está cada edital e as anotações da
 # equipe — NÃO vive mais no estado. Ele vive no banco do artifact, sob regra de
@@ -211,6 +213,13 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
     if link and not link.startswith(("http://", "https://")):
         falha(f"{onde}: link inválido ('{link[:60]}').")
 
+    # A prova de que a conferência na fonte aconteceu. Sem ela, o campo
+    # `disputa` é só a dedução da coleta — que, medida em 03/09/2026, errou 3
+    # das 17 classificações, e duas delas escondendo edital ainda disputável.
+    if not (e.get("situacao_item") or "").strip():
+        falha(f"{onde}: sem 'situacao_item'. A situação não foi conferida na "
+              "fonte — rode tools/situacao.py antes de publicar.")
+
     if e.get("disputa") not in DISPUTA:
         falha(f"{onde}: disputa '{e.get('disputa')}' inválida (esperado um de "
               f"{sorted(DISPUTA)}). Sem esse campo o radar volta a tratar contrato "
@@ -311,6 +320,17 @@ def valida(estado: dict) -> None:
         pncp = cob.get("pncp") or {}
         ext = cob.get("externas") or {}
         cands = (pncp.get("candidatos") or 0) + (ext.get("candidatos") or 0)
+        conferidos = cob.get("conferidos")
+        if not isinstance(conferidos, int):
+            falha("cobertura.conferidos ausente. Registre quantos editais tiveram a "
+                  "situação conferida item a item em tools/situacao.py.")
+        elif conferidos < len(estado.get("editais") or []):
+            falha(
+                f"{conferidos} editais conferidos na fonte, mas {len(estado.get('editais') or [])} "
+                "estão no radar. A dedução da coleta erra nas bordas — em 03/09/2026 "
+                "ela escondeu dois editais ainda disputáveis como se já tivessem dono."
+            )
+
         triados = cob.get("triados")
         if not isinstance(triados, int):
             falha("cobertura.triados ausente. Registre quantos candidatos passaram "
@@ -368,7 +388,8 @@ def main() -> None:
           f"contratações · {pncp.get('candidatos', 0)} candidatos")
     print(f"    externas: {ext.get('abertas', 0)}/{ext.get('tentadas', 0)} fontes "
           f"abertas · {ext.get('candidatos', 0)} candidatos")
-    print(f"    triados {cob.get('triados', 0)} · novos no radar {cob.get('novos', 0)}")
+    print(f"    triados {cob.get('triados', 0)} · conferidos na fonte "
+          f"{cob.get('conferidos', 0)} · novos no radar {cob.get('novos', 0)}")
     if avisos:
         print(f"    {len(avisos)} aviso(s) acima, nenhum bloqueante.")
 

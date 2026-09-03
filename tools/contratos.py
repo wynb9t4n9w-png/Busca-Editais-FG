@@ -145,7 +145,8 @@ def do_estado(estado: dict) -> None:
     if not alvos:
         print("Nenhum edital marcado como 'decidido' no radar — nada a cruzar.")
         return
-    print(f"=== {len(alvos)} contratações já decididas: quem ficou com elas ===\n")
+    print(f"=== {len(alvos)} contratações já decididas: quem ficou com elas ===\n",
+          flush=True)
     achados = 0
     for e in alvos:
         r = procura(e.get("cnpj"), e.get("publicado_em"), e.get("objeto"))

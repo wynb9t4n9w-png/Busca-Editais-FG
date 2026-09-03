@@ -45,7 +45,7 @@ CAMPOS_PUBLICOS = (
     "visto_em",
     # Fatos públicos de contratação: quem contratou, por quanto, quando. Saem
     # do PNCP e voltar a escondê-los só empobreceria o espelho.
-    "disputa", "vencedor",
+    "disputa", "vencedor", "situacao_item",
 )
 
 RESET = (

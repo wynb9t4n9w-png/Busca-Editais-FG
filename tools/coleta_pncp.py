@@ -147,9 +147,9 @@ def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
 DIRETAS = ("dispensa", "inexigibilidade")
 
 
-def disputa(reg: dict) -> str:
+def disputa_provisoria(reg: dict) -> str:
     """
-    Ainda dá para disputar isto?
+    Ainda dá para disputar isto? — a resposta barata, e provisória.
 
     A pergunta parece óbvia e não é, porque a resposta não está em nenhum campo
     de status: `situacaoCompraNome` dizia "Divulgada no PNCP" naquele contrato
@@ -159,11 +159,20 @@ def disputa(reg: dict) -> str:
     Medido em 02/09/2026: 27 das 33 contratações aderentes do dia não tinham
     janela nenhuma. O radar estava mostrando, em sua maioria, o retrovisor.
 
-      aberto        prazo de proposta ainda corre — é oportunidade
+      aberto        prazo de proposta ainda corre
       encerrado     havia prazo, e passou
       decidido      contratação direta sem janela: o extrato veio depois do fato
-      indeterminado modalidade com disputa mas sem prazo declarado — o órgão
-                    publicou incompleto; não descarte, confira
+      indeterminado modalidade com disputa mas sem prazo declarado
+
+    Esta é DEDUÇÃO, a partir do que a listagem em massa entrega — 5.849 registros
+    por dia, sem custo extra. Ela erra nas bordas, e não enxerga duas situações
+    que importam muito: deserto e fracassado.
+
+    A resposta autoritativa está em tools/situacao.py, que abre cada contratação
+    e lê a situação item a item. É mais cara (duas chamadas por edital) e por
+    isso roda só sobre os candidatos, depois do filtro temático. O campo que vai
+    para o radar é o dela; este aqui é o palpite que ordena a fila enquanto o
+    outro não chega.
     """
     fim = reg.get("dataEncerramentoProposta")
     if fim:
@@ -220,7 +229,7 @@ def converte(reg: dict, aval: dict) -> dict:
         "numero": reg.get("numeroCompra"),
         "processo": reg.get("processo"),
         "link": link(reg),
-        "disputa": disputa(reg),
+        "disputa": disputa_provisoria(reg),
         "score": aval["score"],
         "frentes": aval["frentes"],
         "achados": aval["achados"],

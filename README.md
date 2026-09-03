@@ -193,6 +193,17 @@ era raro: das 33 contratações aderentes de 02/09/2026, **27 não tinham janela
 nenhuma**. Quatro dos cinco editais que entraram no radar como quente ou morno
 eram desse tipo. O radar estava mostrando, em sua maioria, o retrovisor.
 
+A pergunta é respondida em dois passos, e o segundo existe porque o primeiro
+erra. A varredura em massa **deduz** a partir do que a listagem entrega — é de
+graça, mas é dedução. Depois, `tools/situacao.py` **abre cada candidato** e lê a
+situação item a item, que é o que o PNCP de fato registra.
+
+A diferença entre os dois foi medida em 03/09/2026: das 17 classificações,
+**três estavam erradas** — e duas delas escondiam edital ainda disputável como
+se já tivesse dono. É o erro caro, o que some em silêncio. Uma inexigibilidade
+do Município de Estrela e um processo de Jacobina estavam "Em andamento" na
+fonte, e a dedução os havia enterrado.
+
 Cada edital carrega agora um campo `disputa`:
 
 | | |
@@ -200,7 +211,13 @@ Cada edital carrega agora um campo `disputa`:
 | `aberto` | o prazo de proposta ainda corre — é oportunidade |
 | `encerrado` | havia prazo, e passou |
 | `decidido` | contratação direta sem janela: o fornecedor já estava escolhido |
+| `relicita` | **deserto** (ninguém apareceu) ou **fracassado** (apareceram e foram desclassificados) — o órgão quis comprar e não conseguiu, e costuma voltar. É disputável, e das melhores horas de aparecer |
+| `cancelado` | anulado ou revogado |
 | `indeterminado` | modalidade com disputa mas sem prazo declarado — o órgão publicou incompleto; não descarte, confira |
+
+Deserto e fracassado a dedução não enxergava de jeito nenhum: os dois apareciam
+como prazo vencido. São justamente os casos em que quem já leu o edital chega na
+frente da próxima rodada.
 
 O Radar e a aba Prazos mostram só o que é disputável, e o validador **reprova a
 rodada** que marcar como `quente` algo que não seja.
@@ -217,16 +234,22 @@ python3 tools/contratos.py --do-estado <estado.html>
 python3 tools/contratos.py <cnpj> <AAAAMMDD> "trecho do objeto"
 ```
 
-O script cruza o edital decidido com os contratos assinados pelo mesmo órgão na
-mesma época, comparando os objetos palavra a palavra (as duas versões saem do
-mesmo processo administrativo e costumam ser quase idênticas). Foi assim que o
-contrato do CRECI/SC apareceu com semelhança 1,00: **UFSC, R$ 1,5 milhão,
-assinado em 01/09**.
+```bash
+python3 tools/situacao.py --do-estado <estado.html>
+python3 tools/situacao.py <cnpj> <ano> <sequencial>
+```
 
-Nem todo decidido tem contrato localizável — às vezes o extrato sai antes da
-assinatura, às vezes o contrato ainda não foi publicado. Por isso o rótulo diz
-"contratação direta", que é o que a evidência sustenta, e não "já contratado".
-Quando o fornecedor é encontrado, o cartão mostra quem foi.
+`situacao.py` é o caminho principal e o mais barato em incerteza: o resultado do
+item traz o vencedor com o valor homologado, direto da fonte. `contratos.py`
+sobrou como reserva, para os órgãos que publicam o contrato mas não os itens —
+ele cruza os objetos palavra a palavra, o que é engenhoso e aproximado.
+
+A diferença entre os dois apareceu na primeira medição: a comparação de texto
+identificou **3 fornecedores em 13**; a leitura dos itens identificou **12 em
+12**. Uma é dedução esperta, a outra é o dado. Foi assim que o contrato do
+CRECI/SC saiu completo — **UFSC, R$ 1,5 milhão** — e junto com ele o IBGC na
+VALEC, o SENAT em Uberlândia, e uma fila de fundações universitárias que é, por
+si só, o retrato de quem concorre com a Thutor neste mercado.
 
 ### Valor não elimina
 

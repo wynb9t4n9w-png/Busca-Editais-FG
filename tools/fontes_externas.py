@@ -60,15 +60,22 @@ FONTES = [
              "03/09/2026; tente de novo e, se persistir, caia para WebSearch "
              "restrita a scf3.sebrae.com.br e aos portais estaduais."},
     {"id": "sebrae-credenciamento", "grupo": "Sistema S",
-     "nome": "Sebrae — credenciamento de consultoria e instrutoria",
-     "url": "https://www.sebraego.com.br/wp-content/uploads/2025/02/edital_01_2026.pdf",
-     "estado": "ok",
-     "nota": "NÃO é um edital pontual: é a porta de entrada permanente. As "
-             "unidades do Sebrae contratam consultoria e instrutoria por "
-             "credenciamento contínuo, não por licitação avulsa. Quem não está "
-             "credenciado não é convidado. Cada UF publica o seu — este é o de "
-             "Goiás, encontrado na sondagem. Vale procurar o das UFs de "
-             "interesse uma vez e resolver de vez, em vez de esperar edital."},
+     "nome": "Sebrae — SGF, credenciamento de consultoria e instrutoria",
+     "url": "http://www.sebrae.com.br/sgf",
+     "estado": "permanente",
+     "nota": "NÃO é um edital pontual e por isso não pertence ao radar diário: "
+             "é a porta de entrada permanente do Sistema Sebrae inteiro — "
+             "Nacional e as 27 unidades estaduais — com inscrição aberta desde "
+             "17/02/2025 e sem data de encerramento. O Sebrae contrata "
+             "consultoria e instrutoria por credenciamento, não por licitação "
+             "avulsa; quem não está credenciado não é chamado. As subáreas 1.5 "
+             "(Cultura e Clima Organizacional), 1.6 (Liderança), 1.10 "
+             "(Planejamento Estratégico de Pessoal), 7.2 (Planejamento "
+             "Estratégico) e 7.3 (Gestão de Processos) são o portfólio da "
+             "Thutor com outro nome. ATENÇÃO ao mecanismo: a contratação é por "
+             "RODÍZIO, com sorteio no primeiro ciclo e sem limite de "
+             "credenciados por subárea — credenciar-se põe a casa na fila, não "
+             "ganha o trabalho. Dúvidas: empresacandidata-sgf@fgv.br."},
     {"id": "sebrae-nacional", "grupo": "Sistema S", "nome": "Sebrae Nacional (portal)",
      "url": "https://www.sebrae.com.br/sites/PortalSebrae/licitacoes",
      "estado": "indice",
@@ -175,7 +182,7 @@ def plano() -> None:
             print(f"\n--- {grupo_atual} ---")
         marca = {"ok": "  ", "403": "! ", "instavel": "~ ", "?": "? ",
                  "indice": "> ", "ok-login": "@ ", "redirect": "> ",
-                 "busca": "# ", "vazio": "0 "}.get(f["estado"], "  ")
+                 "busca": "# ", "vazio": "0 ", "permanente": "* "}.get(f["estado"], "  ")
         print(f"{marca}{f['nome']}")
         print(f"    {f['url']}")
         if f.get("nota"):
@@ -184,6 +191,7 @@ def plano() -> None:
     print("legenda: (em branco) abriu e listou · ! bloqueou · ~ instável")
     print("         ? não sondado · > índice ou redirect · @ exige cadastro")
     print("         # só busca com filtro · 0 responde vazio (JavaScript)")
+    print("         * porta permanente, fora do radar diário — resolva uma vez")
     print()
     print("TERMOS A CRUZAR:")
     for i in range(0, len(TERMOS_BUSCA), 3):

@@ -36,10 +36,16 @@ Duas páginas, com papéis diferentes — o mesmo desenho da Pauta Thutor:
 
 Um edital é informação pública por definição: publicá-lo não vaza nada. Já o
 que a Thutor está fazendo com ele, sim. `status: "participando"`, ou uma nota
-dizendo quem é o contato dentro do órgão, é o funil comercial da casa — num
-repositório público, é o concorrente lendo o pipeline de graça. Por isso o
-espelho perde `auth`, `status`, `nota` e a aba Acompanhamento, e
+dizendo quem é o contato dentro do órgão, é o funil comercial da casa. Por isso
+o espelho perde `auth`, `status`, `nota` e a aba Acompanhamento, e
 `tools/teste_pagina.py` falha se algum deles atravessar.
+
+O repositório é **privado**, ao contrário do da Pauta Thutor — mas isso protege
+menos do que parece, e vale entender por quê. Um site do GitHub Pages é público
+mesmo quando servido de um repositório privado (fora do plano Enterprise): o
+`docs/index.html` que ninguém consegue ler no GitHub é servido aberto no
+endereço do Pages. A sanitização não é redundante com a privacidade do
+repositório — ela é o que de fato protege o funil.
 
 ## A rotina diária
 
@@ -250,3 +256,12 @@ A página pública lista órgãos e objetos de editais — informação pública
 definição. Ela sai com `<meta name="robots" content="noindex,nofollow">`, então
 não aparece em buscadores, mas quem tiver o link vê tudo. O acompanhamento
 comercial não vai para lá; veja *Como funciona*.
+
+**Sobre a senha do artifact.** Ela protege menos do que aparenta, e é melhor
+saber disso do que confiar. O estado inteiro vai embutido no HTML da página, de
+modo que quem consegue abrir o artifact já tem `status` e `nota` no
+código-fonte, com senha ou sem. O portão impede edição acidental, não leitura.
+O controle de acesso real é quem tem acesso ao artifact: artifacts são privados
+por padrão e compartilhados pessoa a pessoa. Para um gate de verdade, os dois
+campos precisariam sair do HTML e viver na capacidade `db`, com regra por nível
+de compartilhamento — o que muda a arquitetura da página.

@@ -33,10 +33,19 @@ from pathlib import Path
 
 # Campos que a renderização pública realmente usa. Conferido em
 # renderRadar/renderPrazos/renderArquivo/renderCobertura.
+# Lista de PERMISSÃO, e ela já se pagou: quando os campos "disputa" e
+# "vencedor" nasceram, o espelho os descartou por padrão — a página pública
+# passou a contar zero contratações diretas e a exibir "sem prazo declarado" no
+# lugar delas. O modo de falha certo. Uma lista de proibição teria publicado os
+# dois calada, e o mesmo teria acontecido com o próximo campo sensível.
 CAMPOS_PUBLICOS = (
     "id", "fonte", "orgao", "unidade", "uf", "municipio", "modalidade",
     "objeto", "valor", "sigiloso", "publicado_em", "abertura", "encerramento",
-    "situacao", "link", "score", "frentes", "veredito", "justificativa", "visto_em",
+    "situacao", "link", "score", "frentes", "veredito", "justificativa",
+    "visto_em",
+    # Fatos públicos de contratação: quem contratou, por quanto, quando. Saem
+    # do PNCP e voltar a escondê-los só empobreceria o espelho.
+    "disputa", "vencedor",
 )
 
 RESET = (

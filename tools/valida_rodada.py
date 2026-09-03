@@ -32,6 +32,14 @@ TZ = ZoneInfo("America/Sao_Paulo")
 
 VEREDITOS = {"quente", "morno", "frio"}
 
+# Ainda dá para disputar? O radar não fazia essa pergunta, e por não fazer
+# exibiu como "super oportunidade" um contrato de R$ 1,5 milhão que o CRECI/SC
+# já havia assinado com a UFSC na véspera de o extrato aparecer no PNCP.
+# Medido em 02/09/2026: 27 das 33 contratações aderentes do dia não tinham
+# janela de proposta nenhuma. O erro não era raro — era a regra.
+DISPUTA = {"aberto", "indeterminado", "decidido", "encerrado"}
+DISPUTAVEL = {"aberto", "indeterminado"}
+
 # O acompanhamento comercial — em que estágio está cada edital e as anotações da
 # equipe — NÃO vive mais no estado. Ele vive no banco do artifact, sob regra de
 # permissão do servidor. Antes o validador precisava vigiar esses campos para
@@ -203,6 +211,18 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
     if link and not link.startswith(("http://", "https://")):
         falha(f"{onde}: link inválido ('{link[:60]}').")
 
+    if e.get("disputa") not in DISPUTA:
+        falha(f"{onde}: disputa '{e.get('disputa')}' inválida (esperado um de "
+              f"{sorted(DISPUTA)}). Sem esse campo o radar volta a tratar contrato "
+              "assinado como oportunidade.")
+    elif e.get("veredito") == "quente" and e["disputa"] not in DISPUTAVEL:
+        falha(
+            f"{onde}: veredito 'quente' num edital '{e['disputa']}'. Quente significa "
+            "que a Thutor ainda pode disputar — e não dá para disputar contratação "
+            "direta sem janela de proposta, nem prazo que já venceu. Rebaixe para "
+            "morno e diga na justificativa que serve como referência de mercado."
+        )
+
     if e.get("veredito") not in VEREDITOS:
         falha(f"{onde}: veredito '{e.get('veredito')}' inválido "
               f"(esperado um de {sorted(VEREDITOS)}). Todo edital no radar passou "
@@ -338,9 +358,12 @@ def main() -> None:
     ext = cob.get("externas") or {}
     editais = estado.get("editais") or []
     quentes = sum(1 for e in editais if e.get("veredito") == "quente")
+    decididos = sum(1 for e in editais if e.get("disputa") == "decidido")
+    com_vencedor = sum(1 for e in editais if e.get("vencedor"))
 
     print(f"ok  rodada {r.get('data')} · {len(editais)} editais no radar "
-          f"({quentes} quentes)")
+          f"({quentes} quentes, {decididos} já contratados"
+          + (f", {com_vencedor} com fornecedor identificado" if com_vencedor else "") + ")")
     print(f"    PNCP: {pncp.get('brutos', 0):,} de {pncp.get('esperados', 0):,} "
           f"contratações · {pncp.get('candidatos', 0)} candidatos")
     print(f"    externas: {ext.get('abertas', 0)}/{ext.get('tentadas', 0)} fontes "

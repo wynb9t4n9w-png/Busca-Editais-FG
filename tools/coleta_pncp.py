@@ -141,6 +141,40 @@ def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
             "total": total, "erros": erros, "perdidas": perdidas}
 
 
+# Modalidades de contratação direta. O PNCP publica o extrato delas DEPOIS do
+# fato — foi assim que o radar mostrou como "super oportunidade" um contrato
+# de R$ 1,5 mi que o CRECI/SC já havia assinado com a UFSC no dia anterior.
+DIRETAS = ("dispensa", "inexigibilidade")
+
+
+def disputa(reg: dict) -> str:
+    """
+    Ainda dá para disputar isto?
+
+    A pergunta parece óbvia e não é, porque a resposta não está em nenhum campo
+    de status: `situacaoCompraNome` dizia "Divulgada no PNCP" naquele contrato
+    já assinado. Quem responde é a JANELA DE PROPOSTA — e a ausência dela,
+    numa contratação direta, é a assinatura de uma decisão já tomada.
+
+    Medido em 02/09/2026: 27 das 33 contratações aderentes do dia não tinham
+    janela nenhuma. O radar estava mostrando, em sua maioria, o retrovisor.
+
+      aberto        prazo de proposta ainda corre — é oportunidade
+      encerrado     havia prazo, e passou
+      decidido      contratação direta sem janela: o extrato veio depois do fato
+      indeterminado modalidade com disputa mas sem prazo declarado — o órgão
+                    publicou incompleto; não descarte, confira
+    """
+    fim = reg.get("dataEncerramentoProposta")
+    if fim:
+        try:
+            return "aberto" if datetime.fromisoformat(fim).date() >= datetime.now(TZ).date() else "encerrado"
+        except ValueError:
+            return "indeterminado"
+    modalidade = (reg.get("modalidadeNome") or "").lower()
+    return "decidido" if any(d in modalidade for d in DIRETAS) else "indeterminado"
+
+
 def identifica(reg: dict) -> str:
     """Chave estável de um edital, para não republicar o mesmo duas vezes."""
     ctrl = reg.get("numeroControlePNCP")
@@ -186,6 +220,7 @@ def converte(reg: dict, aval: dict) -> dict:
         "numero": reg.get("numeroCompra"),
         "processo": reg.get("processo"),
         "link": link(reg),
+        "disputa": disputa(reg),
         "score": aval["score"],
         "frentes": aval["frentes"],
         "achados": aval["achados"],
@@ -233,7 +268,15 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             vistos.add(cand["id"])
             candidatos.append(cand)
 
-    candidatos.sort(key=lambda c: (-c["score"], -(c["valor"] or 0)))
+    por_disputa: dict[str, int] = {}
+    for c in candidatos:
+        por_disputa[c["disputa"]] = por_disputa.get(c["disputa"], 0) + 1
+
+    # Disputáveis primeiro: o que já foi decidido continua no radar como
+    # inteligência de mercado, mas nunca disputa a atenção com o que ainda dá
+    # para ganhar.
+    ORDEM = {"aberto": 0, "indeterminado": 1, "decidido": 2, "encerrado": 3}
+    candidatos.sort(key=lambda c: (ORDEM.get(c["disputa"], 9), -c["score"], -(c["valor"] or 0)))
     fim = datetime.now(TZ)
 
     return {
@@ -247,6 +290,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "esperados": esperados,
             "modalidades_falhas": modalidades_falhas,
             "candidatos": len(candidatos),
+            "por_disputa": por_disputa,
             "min_score": max(min_score, LIMIAR_CANDIDATO),
             "por_modalidade": por_modalidade,
             "erros": erros,
@@ -293,10 +337,15 @@ def main() -> None:
     print(f"    {c['candidatos']} candidatos (score ≥ {c['min_score']}) → {a.saida}")
     if c["erros"]:
         print(f"    {len(c['erros'])} erro(s) de rede: {c['erros'][:3]}")
+    pd = c["por_disputa"]
+    print(f"    disputa: {pd.get('aberto', 0)} abertos · "
+          f"{pd.get('indeterminado', 0)} sem prazo declarado · "
+          f"{pd.get('decidido', 0)} já decididos · {pd.get('encerrado', 0)} encerrados")
     for cand in r["candidatos"][:8]:
         v = f"R$ {cand['valor']:,.0f}" if cand["valor"] else "sigiloso"
-        print(f"    {cand['score']:3d} · {v:>16s} · {cand['uf']} · {','.join(cand['frentes'])}")
-        print(f"          {cand['objeto'][:120]}")
+        print(f"    [{cand['disputa'][:5]}] {cand['score']:3d} · {v:>16s} · {cand['uf']} · "
+              f"{','.join(cand['frentes'])}")
+        print(f"          {cand['objeto'][:118]}")
 
 
 if __name__ == "__main__":

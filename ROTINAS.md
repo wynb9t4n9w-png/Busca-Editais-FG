@@ -111,9 +111,15 @@ Cron em UTC: `0 5 * * *`
 > ### PASSO 4 — Triagem
 > Junte os candidatos das duas camadas. Para cada um, decida um **veredito**:
 >
-> - `quente` — aderência direta ao portfólio, prazo em aberto e porte compatível
->   com o ticket mínimo (R$ 50 mil/mês; um contrato de seis meses vale R$ 300
->   mil). Valor sigiloso não impede ser quente.
+> **Antes de qualquer veredito, olhe o campo `disputa`** que a coleta calculou.
+> Ele responde à pergunta que o radar não fazia — e por não fazer, exibiu como
+> oportunidade quente um contrato de R$ 1,5 mi que o CRECI/SC já tinha assinado
+> com a UFSC. Só `aberto` e `indeterminado` podem ser quentes; o validador
+> reprova o contrário.
+>
+> - `quente` — aderência direta ao portfólio, **`disputa` aberto ou
+>   indeterminado**, e porte compatível com o ticket mínimo (R$ 50 mil/mês; um
+>   contrato de seis meses vale R$ 300 mil). Valor sigiloso não impede ser quente.
 > - `morno` — tema certo mas porte menor, escopo impreciso, ou modalidade que
 >   sugere contratação já direcionada.
 > - `frio` — não é o nosso negócio.
@@ -134,6 +140,10 @@ Cron em UTC: `0 5 * * *`
 > 3. Dia sem nada quente é resultado legítimo. Dia sem varredura, não.
 > 4. Se o objeto estiver truncado ou ambíguo, abra o edital no link antes de
 >    decidir. Não chute para baixo: um `frio` errado desaparece para sempre.
+> 5. Para os editais com `disputa: "decidido"`, rode
+>    `python3 tools/contratos.py --do-estado <html>` e grave o campo `vencedor`
+>    nos que tiverem contrato localizado. Não é oportunidade perdida: é o mapa
+>    de quem compra o que a Thutor vende, por quanto, e contra quem se concorre.
 >
 > Conte quantos você triou. **Esse número precisa ser igual ao total de
 > candidatos colhidos** — o validador confere, porque um candidato não lido pode

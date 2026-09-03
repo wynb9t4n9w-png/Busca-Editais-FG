@@ -46,7 +46,7 @@ def base() -> dict:
             "publicado_em": (HOJE - timedelta(days=1)).date().isoformat(),
             "encerramento": (HOJE + timedelta(days=12)).isoformat(timespec="seconds"),
             "link": "https://pncp.gov.br/app/editais/00000000000191/2026/42",
-            "score": 84, "frentes": ["cultura"],
+            "score": 84, "frentes": ["cultura"], "disputa": "aberto",
             "veredito": "quente",
             "justificativa": "Pesquisa de clima e cultura organizacional é a frente principal da casa.",
             "visto_em": HOJE.date().isoformat(),
@@ -139,6 +139,28 @@ def _status_no_estado(e):
 def _nota_no_estado(e):
     e["editais"][0]["nota"] = "contato: fulano na diretoria"
 
+def _quente_ja_contratado(e):
+    # O caso exato de 03/09/2026: Dispensa sem janela de proposta, contrato já
+    # assinado, e o radar chamando de oportunidade quente.
+    e["editais"][0]["disputa"] = "decidido"
+    e["editais"][0]["encerramento"] = None
+
+def _quente_com_prazo_vencido(e):
+    e["editais"][0]["disputa"] = "encerrado"
+    e["editais"][0]["encerramento"] = (HOJE - timedelta(days=5)).isoformat(timespec="seconds")
+
+def _sem_disputa(e):
+    e["editais"][0].pop("disputa")
+
+def _morno_ja_contratado(e):
+    # Isto PRECISA passar: contratação decidida é inteligência de mercado
+    # legítima, desde que não se venda como oportunidade.
+    e["editais"][0]["disputa"] = "decidido"
+    e["editais"][0]["encerramento"] = None
+    e["editais"][0]["veredito"] = "morno"
+    e["editais"][0]["vencedor"] = {"fornecedor": "UNIVERSIDADE FEDERAL DE SANTA CATARINA",
+                                   "valor": 1500000.0, "assinado_em": "2026-09-01"}
+
 def _sem_veredito(e):
     e["editais"][0]["veredito"] = None
 
@@ -172,6 +194,10 @@ CASOS = [
     ("auth voltou ao estado", _auth_voltou, True, "voltou a carregar"),
     ("status escrito no estado", _status_no_estado, True, "não pertence ao estado"),
     ("nota escrita no estado", _nota_no_estado, True, "não pertence ao estado"),
+    ("quente numa contratação direta", _quente_ja_contratado, True, "ainda pode disputar"),
+    ("quente com prazo vencido", _quente_com_prazo_vencido, True, "ainda pode disputar"),
+    ("campo disputa ausente", _sem_disputa, True, "disputa"),
+    ("morno já contratado, com vencedor", _morno_ja_contratado, False, "ok"),
     ("edital sem veredito", _sem_veredito, True, "veredito"),
     ("quente sem justificativa", _quente_sem_justificativa, True, "sem justificativa"),
     ("id duplicado", _id_duplicado, True, "duplicado"),

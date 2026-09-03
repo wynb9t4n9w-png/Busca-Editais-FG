@@ -175,6 +175,59 @@ guardados → 1 quente**. O quente era a Universidade Corporativa em Rede do
 CRECI/SC, R$ 1,5 milhão — trinta meses no ticket mínimo, e um item literal do
 portfólio.
 
+### Ainda dá para disputar?
+
+Esta pergunta não existia no projeto, e a ausência dela produziu o pior erro que
+o radar já cometeu. Em 03/09/2026 ele exibiu como **oportunidade quente** um
+contrato de R$ 1,5 milhão — Universidade Corporativa do CRECI/SC, exatamente o
+portfólio da casa. O contrato já havia sido assinado com a UFSC no dia anterior.
+Só apareceu porque um humano abriu o link.
+
+O que torna o caso instrutivo é que **nenhum campo de status denunciava**:
+`situacaoCompraNome` dizia "Divulgada no PNCP". Em contratação direta — Dispensa
+e Inexigibilidade — o portal publica o extrato *depois* do fato, e o registro
+fica indistinguível de um edital novo para quem só lê o status.
+
+Quem responde é a **janela de proposta**, e a medição explica por que o erro não
+era raro: das 33 contratações aderentes de 02/09/2026, **27 não tinham janela
+nenhuma**. Quatro dos cinco editais que entraram no radar como quente ou morno
+eram desse tipo. O radar estava mostrando, em sua maioria, o retrovisor.
+
+Cada edital carrega agora um campo `disputa`:
+
+| | |
+|---|---|
+| `aberto` | o prazo de proposta ainda corre — é oportunidade |
+| `encerrado` | havia prazo, e passou |
+| `decidido` | contratação direta sem janela: o fornecedor já estava escolhido |
+| `indeterminado` | modalidade com disputa mas sem prazo declarado — o órgão publicou incompleto; não descarte, confira |
+
+O Radar e a aba Prazos mostram só o que é disputável, e o validador **reprova a
+rodada** que marcar como `quente` algo que não seja.
+
+### O retrovisor vale dinheiro
+
+Descartar as contratações já decididas seria trocar um erro por outro. Elas
+dizem quais órgãos compram o que a Thutor vende, quanto pagam e quem está
+ganhando — informação que uma consultoria não consegue comprar. A diferença
+entre lixo e inteligência aqui é só o rótulo.
+
+```bash
+python3 tools/contratos.py --do-estado <estado.html>
+python3 tools/contratos.py <cnpj> <AAAAMMDD> "trecho do objeto"
+```
+
+O script cruza o edital decidido com os contratos assinados pelo mesmo órgão na
+mesma época, comparando os objetos palavra a palavra (as duas versões saem do
+mesmo processo administrativo e costumam ser quase idênticas). Foi assim que o
+contrato do CRECI/SC apareceu com semelhança 1,00: **UFSC, R$ 1,5 milhão,
+assinado em 01/09**.
+
+Nem todo decidido tem contrato localizável — às vezes o extrato sai antes da
+assinatura, às vezes o contrato ainda não foi publicado. Por isso o rótulo diz
+"contratação direta", que é o que a evidência sustenta, e não "já contratado".
+Quando o fornecedor é encontrado, o cartão mostra quem foi.
+
 ### Valor não elimina
 
 O ticket mínimo é R$ 50.000/mês; seis meses valem R$ 300.000, e é esse o

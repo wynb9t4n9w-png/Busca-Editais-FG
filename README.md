@@ -40,12 +40,16 @@ dizendo quem é o contato dentro do órgão, é o funil comercial da casa. Por i
 o espelho perde `auth`, `status`, `nota` e a aba Acompanhamento, e
 `tools/teste_pagina.py` falha se algum deles atravessar.
 
-O repositório é **privado**, ao contrário do da Pauta Thutor — mas isso protege
-menos do que parece, e vale entender por quê. Um site do GitHub Pages é público
-mesmo quando servido de um repositório privado (fora do plano Enterprise): o
-`docs/index.html` que ninguém consegue ler no GitHub é servido aberto no
-endereço do Pages. A sanitização não é redundante com a privacidade do
-repositório — ela é o que de fato protege o funil.
+A visibilidade do repositório não entra nessa conta, e é importante entender por
+quê antes de contar com ela. Um site do GitHub Pages é servido **público de
+qualquer jeito**: mesmo em repositório privado — fora do plano Enterprise — o
+`docs/index.html` que ninguém lê no GitHub fica aberto no endereço do Pages. E
+um repositório pode mudar de privado para público num clique, como este mudou
+em 03/09/2026.
+
+Ou seja: a sanitização é o que protege o funil, sempre, e não uma redundância
+para o caso de o repositório vazar. É por isso que `tools/teste_pagina.py` a
+trata como falha de publicação, e não como aviso.
 
 ## A rotina diária
 

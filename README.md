@@ -29,6 +29,7 @@ Duas páginas, com papéis diferentes — o mesmo desenho da Pauta Thutor:
 
 | | Artifact (privado) | GitHub Pages (público) |
 |---|---|---|
+| Endereço | [`22647cdb…`](https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b) | [`wynb9t4n9w-png.github.io/Busca-Editais-FG/`](https://wynb9t4n9w-png.github.io/Busca-Editais-FG/) |
 | Quem abre | só quem tem acesso na conta Claude | qualquer pessoa com o link |
 | Acompanhamento comercial | editável, protegido por senha | não existe |
 | Papel | **fonte da verdade** | espelho somente-leitura |

@@ -104,6 +104,33 @@ def confere_vazamento(html: str) -> list[str]:
     return problemas
 
 
+def confere_estilo(html: str) -> list[str]:
+    """
+    A página pública precisa levar o próprio CSS.
+
+    Isto já falhou uma vez, e falhou em silêncio: o `<style>` estava no
+    `<head>` do arquivo do artifact, e build_publico.py descarta tudo antes de
+    `<body>` — porque o host do artifact injeta o `<head>` dele. O espelho saiu
+    com todo o conteúdo certo e nenhuma regra de estilo, e nada na saída dos
+    scripts denunciou: o validador aprovou, o gerador aprovou, e o teste de
+    navegação aprovou, porque as abas continuavam funcionando. Só olhando a
+    página se via que ela tinha virado texto cru.
+    """
+    problemas = []
+    if "<style" not in html:
+        problemas.append(
+            "a página pública saiu sem nenhum bloco <style> — o CSS ficou para "
+            "trás. No arquivo do artifact, o estilo precisa vir DEPOIS de "
+            "<body>, porque o host injeta o próprio <head> e build_publico.py "
+            "descarta tudo o que vem antes."
+        )
+    if "fonts.googleapis.com" not in html:
+        problemas.append("o link da fonte não atravessou para a página pública.")
+    if "--teal" not in html:
+        problemas.append("os tokens de cor do sistema visual Thutor não estão na página.")
+    return problemas
+
+
 def main() -> None:
     pagina = Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "docs" / "index.html"
     if not pagina.exists():
@@ -113,12 +140,12 @@ def main() -> None:
     falhou = 0
 
     print("--- vazamento de dados internos ---")
-    problemas = confere_vazamento(html)
+    problemas = confere_vazamento(html) + confere_estilo(html)
     for p in problemas:
         print(f"FALHOU {p}")
     falhou += len(problemas)
     if not problemas:
-        print("ok   nem auth, nem status, nem nota atravessaram.")
+        print("ok   nem auth, nem status, nem nota atravessaram; o estilo veio junto.")
 
     print("\n--- navegação num navegador real ---")
     chrome = acha_chromium()

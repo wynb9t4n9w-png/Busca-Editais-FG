@@ -23,7 +23,7 @@ Cron em UTC: `0 5 * * *`
 > licitação aderentes ao portfólio da consultoria Thutor. Tudo roda na nuvem.
 >
 > O radar tem DOIS destinos, e os dois precisam ser atualizados:
-> - **A)** o artifact privado, que é a fonte da verdade: `<URL DO ARTIFACT>`
+> - **A)** o artifact privado, que é a fonte da verdade: https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b
 > - **B)** o espelho público em GitHub Pages: `https://wynb9t4n9w-png.github.io/Busca-Editais-FG/`
 >
 > ### Orçamento de tempo
@@ -229,7 +229,7 @@ indistinguível de uma que deu certo.
 > às 06:00. Sua função é garantir que a página pública não fique atrás do
 > artifact.
 >
-> Artifact (fonte da verdade): `<URL DO ARTIFACT>`
+> Artifact (fonte da verdade): https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b
 > Página pública: `https://wynb9t4n9w-png.github.io/Busca-Editais-FG/`
 > Repositório: `wynb9t4n9w-png/Busca-Editais-FG`
 >

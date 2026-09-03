@@ -1,0 +1,11 @@
+# Fonte do artifact: contém o bloco "auth" (usuário, salt e hash da senha de
+# administrador) e, em cada edital, o "status" comercial e a "nota" interna da
+# equipe. O repositório é público — só a versão sanitizada por
+# tools/build_publico.py, em docs/index.html, pode ser versionada.
+busca-editais-fg.html
+
+# Saída da coleta. É intermediária, pesa alguns MB e se refaz em minutos.
+candidatos.json
+
+__pycache__/
+*.pyc

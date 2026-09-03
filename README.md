@@ -129,8 +129,50 @@ registro:
   convidado, e nenhum radar de editais resolve isso. É uma tarefa de uma vez só,
   não de todo dia.
 
-O registro também aprende: `--relatorio` lê o estado e mostra quais fontes de
-fato renderam edital, para que o esforço vá para as que pagam.
+### O mecanismo melhora todo dia
+
+A Pauta Thutor tem um dossiê de fontes que se refaz a cada execução: ele olha
+quais veículos de fato renderam notícia e vira uma camada de busca dirigida por
+evidência. A lista fixa do prompt envelhece; o dossiê não.
+
+Aqui a mesma ideia opera em dois lugares, e o material é melhor porque a coleta
+é determinística.
+
+**A ordem de visita aprende.** Cada rodada registra em `estado["fontes"]` o que
+aconteceu com cada portal — tentativas, aberturas, candidatos, editais rendidos,
+falhas seguidas. Passando o estado ao script, o plano sai ordenado: quem rende
+vem primeiro, quem não abre há três rodadas vai para o fim. E **continua na
+lista**: portal de licitação passa semanas sem publicar nada do nosso tema, e
+abandonar cedo é como perder cliente por não ligar.
+
+```bash
+python3 tools/fontes_externas.py <estado.html>   # plano ordenado por rendimento
+python3 tools/fontes_externas.py --relatorio <estado.html>
+```
+
+**O filtro aprende.** `tools/aprende.py` lê o histórico e propõe o que a
+próxima versão deveria procurar:
+
+```bash
+python3 tools/aprende.py <estado.html>
+```
+
+- **órgãos que voltaram** a comprar o tema — prospecção direta, não espera pelo
+  próximo edital;
+- **palavras que discriminaram** os editais bons dos frios e ainda não estão no
+  léxico, ranqueadas por quanto discriminam e não por frequência crua (a
+  frequência elegeria "serviços");
+- **ruído recorrente** que merece veto, sempre conferindo que a palavra nunca
+  apareceu num edital bom;
+- **quem está ganhando** — na primeira medição, 7 dos 12 contratos foram para
+  fundação, universidade ou entidade do Sistema S. Se isso se confirmar ao longo
+  das semanas, é uma característica do mercado, e uma decisão de posicionamento.
+
+Nada disso é aplicado sozinho. O script **propõe**, com o número que sustenta
+cada proposta; quem edita `tools/perfil.py` é uma pessoa, e cada termo novo entra
+junto com um caso de ouro em `tools/teste_perfil.py`. Um filtro que se reescreve
+sozinho é um filtro que ninguém consegue auditar depois — e este projeto já
+gastou caro aprendendo que o erro que some em silêncio é o que custa.
 
 ## O perfil comercial
 
@@ -362,6 +404,16 @@ trás e três verificações aprovaram assim mesmo.
 14.133. Sistema S, estatais sob a Lei 13.303 e alguns conselhos ficam de fora —
 daí a camada 2, que é frágil por natureza porque depende de trinta portais que
 ninguém controla.
+
+Mas ele cobre mais do que parece, e vale saber o quanto. Medindo o campo
+`linkSistemaOrigem` em 1.700 registros de um dia: **81 plataformas distintas**
+alimentam o PNCP — Comprasnet/SERPRO à frente, depois Portal de Compras
+Públicas, BLL, BNC, Licitar Digital, Licitanet, Pregão Banrisul e dezenas de
+portais municipais. O **Licitações-e do Banco do Brasil está entre elas**
+(`licitacoes-e2.bb.com.br`, 29 registros), o que significa que a camada 1 já o
+alcança e raspá-lo seria trabalho duplicado num site com antirrobô e chave de
+acesso paga. Nenhuma estratégia de raspagem cobriria 81 plataformas: é o
+argumento mais forte a favor de partir do PNCP.
 
 **A camada 2 depende de rede aberta.** Se o ambiente bloquear egresso, ela cai
 para `WebSearch` e perde muito. A Pauta Thutor vive esse teto: a política de

@@ -11,6 +11,8 @@ falha que já aconteceu, aqui ou na Pauta Thutor:
              como sucesso
   coleta     se o PNCP renomear um campo, a varredura roda, não acha nada, e o
              radar amanhece vazio sem ninguém desconfiar
+  aprendizado o ciclo que faz o mecanismo melhorar — se ele quebrar, o filtro
+             congela na versão de hoje e ninguém percebe
   página     remover a aba administrativa quebrou as outras abas, e o CSS já
              ficou para trás numa publicação sem que nada estourasse
   espelho    o funil comercial não pode atravessar para a versão pública
@@ -39,6 +41,8 @@ SUITE = [
      "o portão que impede publicar uma rodada que não aconteceu"),
     ("coleta", ["tools/teste_coleta.py"], True,
      "o contrato com a API do PNCP — o teste contra a falha silenciosa"),
+    ("aprendizado", ["tools/teste_aprende.py"], False,
+     "o que o radar propõe para a próxima versão do filtro"),
     ("página pública", ["tools/teste_pagina.py", "docs/index.html"], False,
      "as quatro abas do espelho, o CSS e o vazamento do funil"),
     ("página do artifact", ["tools/teste_pagina.py", "busca-editais-fg.html"], False,

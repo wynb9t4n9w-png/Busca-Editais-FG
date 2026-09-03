@@ -86,8 +86,14 @@ Cron em UTC: `0 5 * * *`
 >
 > ### PASSO 3 — Camada 2: o que o PNCP não cobre
 > ```
-> python3 tools/fontes_externas.py
+> python3 tools/fontes_externas.py <caminho do HTML do artifact>
 > ```
+> **Passe o estado como argumento.** Com ele, o plano sai ordenado pelo que já
+> rendeu: as fontes que produziram edital vêm primeiro, as que não abrem há três
+> rodadas vão para o fim — e continuam na lista, porque portal de licitação
+> passa semanas sem publicar nada do nosso tema, e abandonar cedo é como perder
+> cliente por não ligar.
+>
 > Ele imprime o plano de leitura: Sistema S (Sebrae, Sesi, Senai, Sesc, Senac,
 > Senar, Sest/Senat), estatais e bancos públicos. **Esta camada é obrigatória** —
 > é onde estão os editais mais aderentes, e o PNCP não os alcança.
@@ -246,6 +252,21 @@ Cron em UTC: `0 5 * * *`
 > responda `FALHA parcial:` e diga que o repositório precisa estar nas fontes
 > autorizadas da rotina.
 >
+> ### PASSO 8.5 — O que o radar aprendeu
+> ```
+> python3 tools/aprende.py busca-editais-fg.html
+> ```
+> Roda sobre o histórico acumulado e propõe: órgãos que voltaram a comprar o
+> tema (prospecção direta, não espera), palavras que discriminaram os editais
+> bons e ainda não estão no léxico, ruído recorrente que merece veto, e quem
+> está ganhando.
+>
+> **Não aplique nada automaticamente.** Um filtro que se reescreve sozinho é um
+> filtro que ninguém consegue auditar depois. Leve as duas ou três propostas
+> mais fortes para o relatório final, com o número que as sustenta — quem edita
+> `tools/perfil.py` é uma pessoa, e cada termo novo entra junto com um caso de
+> ouro em `tools/teste_perfil.py`.
+>
 > ### PASSO 9 — Fechar
 > Responda em português, em no máximo 8 linhas: quantas contratações o PNCP
 > devolveu e se a conta fechou; quantas fontes externas abriram; quantos
@@ -254,6 +275,10 @@ Cron em UTC: `0 5 * * *`
 > quanto tempo durou; se o espelho foi atualizado; e os dois links.
 >
 > Se alguma fonte ficou sem cobertura, diga qual — em vez de deixar passar.
+>
+> Feche com **duas linhas do que o radar aprendeu** (PASSO 8.5): a proposta mais
+> forte de termo novo ou de veto, e qualquer órgão que voltou a comprar. É a
+> parte que faz o mecanismo melhorar em vez de só rodar.
 
 ---
 

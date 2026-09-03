@@ -342,6 +342,21 @@ def valida(estado: dict) -> None:
                 "pode ser o contrato do ano. Volte e termine a triagem."
             )
 
+    # O histórico por fonte é o que faz a camada 2 melhorar sozinha: ele decide
+    # a ordem de visita das rodadas seguintes. Some sem barulho se uma rodada
+    # gravar o estado sem ele, e aí a camada volta a ser uma lista fixa.
+    fontes = estado.get("fontes")
+    if len(rodadas) > 1 and not fontes:
+        aviso("o estado não tem 'fontes'. Sem esse acumulado, o plano da camada 2 "
+              "volta a ser uma lista fixa, e a ordem de visita para de aprender.")
+    elif isinstance(fontes, dict):
+        sem_tentativa = [k for k, v in fontes.items()
+                         if not isinstance(v, dict) or "tentativas" not in v]
+        if sem_tentativa:
+            falha(f"fontes sem contagem de tentativas: {sem_tentativa[:5]}. "
+                  "Cada fonte precisa de tentativas, aberturas, editais e "
+                  "falhas_seguidas para o plano poder ordenar.")
+
     editais = estado.get("editais")
     if editais is None:
         falha("a lista 'editais' sumiu do estado.")

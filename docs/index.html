@@ -188,7 +188,6 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   <section id="p-prazos" role="tabpanel" aria-labelledby="tab-prazos" hidden></section>
   <section id="p-arquivo" role="tabpanel" aria-labelledby="tab-arquivo" hidden></section>
   <section id="p-cobertura" role="tabpanel" aria-labelledby="tab-cobertura" hidden></section>
-  <section id="p-acompanhamento" role="tabpanel" aria-labelledby="tab-acompanhamento" hidden></section>
 </main>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -231,6 +230,12 @@ var STATUS = {
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function el(id){ return document.getElementById(id); }
+/* Painel que pode não existir. A versão pública é gerada removendo a aba
+   Acompanhamento, e foi exatamente assim que a Pauta Thutor quebrou: um el()
+   virou null, a função estourou no meio e as outras abas abriram vazias.
+   Aqui a ausência é um caso previsto, não um acidente. */
+function elOpcional(id){ return document.getElementById(id); }
+function visivel(id){ var n = elOpcional(id); return !!n && !n.hidden; }
 function toast(msg){ var t=el("toast"); t.textContent=msg; t.classList.add("on");
   clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove("on"); }, 4200); }
 
@@ -550,7 +555,8 @@ function marcar(id, campo, valor){
 }
 
 function renderAcompanhamento(){
-  var alvo = el("p-acompanhamento");
+  var alvo = elOpcional("p-acompanhamento");
+  if(!alvo) return;   /* versão pública: a aba não existe, e não deve existir */
 
   if(dbErro){
     alvo.innerHTML = '<h2><span class="t">Acompanhamento comercial</span></h2>'+
@@ -637,10 +643,11 @@ function renderAcompanhamento(){
    escrita de outra pessoa. O painel aberto só se redesenha se ninguém estiver
    digitando nele, senão o cursor pula no meio da frase. */
 function aplicarAcomp(){
-  if(!el("p-radar").hidden) renderRadar();
-  else if(!el("p-prazos").hidden) renderPrazos();
-  else if(!el("p-arquivo").hidden) renderArquivo();
-  else if(!el("p-acompanhamento").hidden){
+  if(visivel("p-radar")) renderRadar();
+  else if(visivel("p-prazos")) renderPrazos();
+  else if(visivel("p-arquivo")) renderArquivo();
+  else if(visivel("p-acompanhamento")){
+    /* Redesenhar enquanto alguém digita faria o cursor pular no meio da frase. */
     var foco = document.activeElement;
     if(!foco || !foco.classList || !foco.classList.contains("txtNota")) renderAcompanhamento();
   }
@@ -654,8 +661,10 @@ function aplicarAcomp(){
    erro real da Pauta Thutor. */
 function irPara(p){
   ["radar","prazos","arquivo","cobertura"].forEach(function(k){
-    el("tab-"+k).setAttribute("aria-selected", String(k===p));
-    el("p-"+k).hidden = (k!==p);
+    var b = elOpcional("tab-"+k), painel = elOpcional("p-"+k);
+    if(!b || !painel) return;   /* aba removida na versão pública */
+    b.setAttribute("aria-selected", String(k===p));
+    painel.hidden = (k!==p);
   });
   if(p==="radar") renderRadar();
   if(p==="prazos") renderPrazos();
@@ -709,7 +718,7 @@ if(window.claude && typeof window.claude.use === "function"){
 }
 
 function renderAcompanhamentoSeVisivel(){
-  if(!el("p-acompanhamento").hidden) renderAcompanhamento();
+  if(visivel("p-acompanhamento")) renderAcompanhamento();
 }
 })();
 </script>

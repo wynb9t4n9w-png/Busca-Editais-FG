@@ -44,9 +44,10 @@ CAMPOS_PROIBIDOS = ("auth", "status", "nota")
 # ela prometeu, alguma página se perdeu — e cada página são 50 contratações que
 # nunca chegaram ao radar. A tolerância é pequena de propósito.
 TOLERANCIA_COLETA = 0.99
-# Piso absoluto, para o caso de a API responder vazio o dia inteiro. Fim de
-# semana publica pouco, então o piso do sábado e domingo é outro.
-PISO_UTIL, PISO_FDS = 1500, 60
+# Piso absoluto, usado SÓ quando não dá para conferir a completude pela própria
+# fonte. Ele não é uma expectativa de volume: volume baixo é resultado legítimo
+# em feriado, e 7 de setembro cai numa segunda.
+PISO_CEGO = 40
 # Uma rodada honesta lê o PNCP inteiro e ainda visita os portais externos.
 DURACAO_MINIMA_S = 300
 DURACAO_CONFORTAVEL_S = 900
@@ -86,6 +87,24 @@ def quando(v: str | None):
 
 
 def valida_pncp(p: dict, hoje) -> None:
+    """
+    A pergunta certa não é "veio bastante coisa?" — é "veio tudo o que havia?".
+
+    A API do PNCP informa, por modalidade, quantos registros existem no período
+    (totalRegistros), e a coleta soma isso em `esperados`. Com esse número a
+    completude é verificável, e o volume deixa de ser sintoma de nada: 5.849
+    contratações numa quarta e 180 num feriado são as duas corretas, desde que
+    a conta feche.
+
+    Isso é o oposto do que a Pauta Thutor consegue fazer. Lá o único sinal
+    disponível é o relógio, então o portão pergunta se a coleta demorou o
+    bastante — uma aproximação, que erra nos dois sentidos. Aqui a fonte diz
+    quanto havia, e o portão confere.
+
+    O piso absoluto sobrou para o único caso em que a verificação não existe:
+    `esperados` ausente ou zerado, que é como uma API muda de resposta sem
+    avisar.
+    """
     if not isinstance(p, dict):
         falha("cobertura.pncp ausente. Sem ela não há prova de que a camada 1 rodou.")
         return
@@ -93,20 +112,9 @@ def valida_pncp(p: dict, hoje) -> None:
     brutos = p.get("brutos")
     esperados = p.get("esperados")
     if not isinstance(brutos, int):
-        falha("cobertura.pncp.brutos ausente ou não é inteiro.")
+        falha("cobertura.pncp.brutos ausente ou não é um número inteiro.")
         return
 
-    piso = PISO_FDS if hoje.weekday() >= 5 else PISO_UTIL
-    if brutos < piso:
-        falha(
-            f"a camada 1 viu {brutos} contratações no PNCP; o piso para "
-            f"{'fim de semana' if hoje.weekday() >= 5 else 'dia útil'} é {piso}. "
-            "Um número tão baixo significa que a API não respondeu, não que o "
-            "Brasil parou de licitar."
-        )
-
-    # A conta que a Pauta Thutor não tinha como fazer: a própria fonte diz
-    # quantos registros existem, então dá para saber se falta alguém.
     if isinstance(esperados, int) and esperados > 0:
         if brutos < esperados * TOLERANCIA_COLETA:
             perdidos = esperados - brutos
@@ -115,9 +123,25 @@ def valida_pncp(p: dict, hoje) -> None:
                 f"— {perdidos:,} não foram vistas. Rode a coleta de novo: cada página "
                 "perdida são até 50 oportunidades que nunca entraram no radar."
             )
+        elif brutos < 1500 and hoje.weekday() < 5:
+            # Não é falha: a conta fechou. É só digno de nota, porque um dia útil
+            # magro costuma ser feriado — e, se não for, alguma coisa mudou na fonte.
+            aviso(
+                f"{brutos:,} contratações num dia útil, bem abaixo das ~5.800 "
+                "habituais. A conta com a API fechou, então a varredura está "
+                "completa: provavelmente é feriado. Se não for, desconfie da fonte."
+            )
     else:
-        aviso("cobertura.pncp.esperados ausente — sem ele não dá para provar que a "
-              "varredura foi completa, só que ela trouxe bastante coisa.")
+        # Sem `esperados` não há como provar completude — resta o piso cego.
+        aviso("cobertura.pncp.esperados ausente ou zerado — sem ele não dá para "
+              "provar que a varredura foi completa, só que ela trouxe alguma coisa.")
+        if brutos < PISO_CEGO:
+            falha(
+                f"a camada 1 viu {brutos} contratações e não informou quantas "
+                f"existiam. Abaixo de {PISO_CEGO} sem essa conta, o mais provável "
+                "é que a API não tenha respondido — não que o Brasil tenha parado "
+                "de licitar."
+            )
 
     perdidas = p.get("paginas_perdidas")
     if isinstance(perdidas, int) and perdidas > 0:
@@ -131,7 +155,7 @@ def valida_pncp(p: dict, hoje) -> None:
     cand = p.get("candidatos")
     if not isinstance(cand, int):
         falha("cobertura.pncp.candidatos ausente.")
-    elif cand == 0 and brutos > piso:
+    elif cand == 0 and brutos > 2000:
         aviso(f"{brutos:,} contratações e nenhum candidato. É possível num dia "
               "fraco, mas confira se o filtro de tools/perfil.py não regrediu — "
               "a média observada é de algumas dezenas por dia.")

@@ -39,6 +39,8 @@ from perfil import avalia, LIMIAR_CANDIDATO  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
+# A API aceita tamanhoPagina entre 10 e 50 — sondado em 03/09/2026; fora da
+# faixa devolve HTTP 400. Usamos o teto: 5.849 contratações em 124 páginas.
 TAM_PAGINA = 50
 
 # Todas as modalidades em que um serviço de consultoria pode aparecer. Leilão
@@ -55,6 +57,8 @@ PAUSA_BASE = 2.0
 # Espera antes da repescagem: o 503 do PNCP costuma ser pico de carga, e
 # insistir na hora só repete o erro.
 PAUSA_REPESCA = 20.0
+# O 429 do PNCP pede paciência de outra ordem que um erro de rede comum.
+PAUSA_429 = 15.0
 TETO_PAGINAS = 400  # trava de segurança; nenhuma modalidade chegou perto disso
 
 
@@ -79,6 +83,18 @@ def busca(modalidade: int, d1: str, d2: str, pagina: int) -> dict:
             if e.code == 204:
                 return {"data": [], "totalPaginas": 0, "totalRegistros": 0}
             ultimo = f"HTTP {e.code}"
+            if e.code == 429:
+                # Rate limit: insistir no ritmo de sempre só renova a recusa.
+                # A varredura começa às 02:00 e tem a manhã inteira — esperar
+                # sai muito mais barato que perder uma página.
+                time.sleep(PAUSA_429 * (t + 1))
+                continue
+            if e.code == 400:
+                # Requisição malformada não melhora com repetição, e repetir
+                # esconderia um erro de programação atrás de "instabilidade".
+                return {"data": [], "totalPaginas": 0, "totalRegistros": 0,
+                        "_erro": "HTTP 400 (requisição inválida — confira os "
+                                 "parâmetros; tamanhoPagina precisa ficar entre 10 e 50)"}
         except Exception as e:  # rede, timeout, JSON quebrado
             ultimo = str(e)[:120]
         if t < TENTATIVAS - 1:

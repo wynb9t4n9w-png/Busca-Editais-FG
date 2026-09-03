@@ -30,21 +30,30 @@ import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-ABAS = ("radar", "prazos", "arquivo", "cobertura")
+ABAS_PUBLICAS = ("radar", "prazos", "arquivo", "cobertura")
+ABAS_ARTIFACT = ABAS_PUBLICAS + ("acompanhamento",)
 CONTEUDO_MINIMO = 200  # bytes de innerHTML; painel vazio fica perto de zero
+# Num navegador comum não existe window.claude, então a aba Acompanhamento
+# renderiza a mensagem de "disponível só no artifact". Ela é curta, e é a
+# resposta certa — o que não pode é ficar vazia.
+CONTEUDO_MINIMO_ACOMP = 150
 
 # Campos que NÃO podem chegar à página pública.
 PROIBIDOS_ESTADO = ("auth",)
 PROIBIDOS_EDITAL = ("status", "nota")
 
-SONDA = """
+def sonda(abas: tuple[str, ...]) -> str:
+    return SONDA_MOLDE.replace("__ABAS__", json.dumps(list(abas)))
+
+
+SONDA_MOLDE = """
 <script>
 window.__erros = [];
 window.addEventListener("error", function(e){ window.__erros.push(String(e.message)); });
 window.addEventListener("load", function(){
   setTimeout(function(){
     var linhas = [];
-    ["radar","prazos","arquivo","cobertura"].forEach(function(k){
+    __ABAS__.forEach(function(k){
       var b = document.getElementById("tab-" + k);
       if (b) { try { b.click(); } catch (e) { window.__erros.push("click " + k + ": " + e.message); } }
       var p = document.getElementById("p-" + k);
@@ -63,6 +72,11 @@ window.addEventListener("load", function(){
 });
 </script>
 """
+
+
+def eh_artifact(html: str) -> bool:
+    """A versão do artifact é a que ainda tem a aba Acompanhamento."""
+    return 'id="tab-acompanhamento"' in html
 
 
 def acha_chromium() -> str | None:
@@ -99,8 +113,13 @@ def confere_vazamento(html: str) -> list[str]:
             f"o campo '{campo}' sobreviveu em {n} edital(is) — é o funil comercial "
             "da Thutor num repositório público."
         )
-    if "<button" in html and 'id="tab-acompanhamento"' in html:
-        problemas.append("o botão da aba Acompanhamento continua na página pública.")
+    if 'id="tab-acompanhamento"' in html:
+        problemas.append(
+            "sobrou referência a 'tab-acompanhamento' na página pública — ou o "
+            "botão ficou, ou o painel ficou apontando para ele com aria-labelledby."
+        )
+    if 'id="p-acompanhamento"' in html:
+        problemas.append("o painel de acompanhamento continua na página pública.")
     return problemas
 
 
@@ -137,15 +156,25 @@ def main() -> None:
         raise SystemExit(f"FALHA: {pagina} não existe. Rode tools/build_publico.py antes.")
 
     html = pagina.read_text(encoding="utf8")
+    artifact = eh_artifact(html)
+    abas = ABAS_ARTIFACT if artifact else ABAS_PUBLICAS
     falhou = 0
 
+    print(f"### {pagina.name} — versão {'do artifact' if artifact else 'pública'}, "
+          f"{len(abas)} abas\n")
+
     print("--- vazamento de dados internos ---")
-    problemas = confere_vazamento(html) + confere_estilo(html)
+    # As regras de sanitização valem para a versão pública. Na do artifact não
+    # há o que sanitizar: o acompanhamento vive no banco, não no HTML.
+    problemas = confere_estilo(html)
+    if not artifact:
+        problemas += confere_vazamento(html)
     for p in problemas:
         print(f"FALHOU {p}")
     falhou += len(problemas)
     if not problemas:
-        print("ok   nem auth, nem status, nem nota atravessaram; o estilo veio junto.")
+        print("ok   " + ("o estilo veio junto." if artifact
+                        else "nem auth, nem status, nem nota atravessaram; o estilo veio junto."))
 
     print("\n--- navegação num navegador real ---")
     chrome = acha_chromium()
@@ -154,7 +183,7 @@ def main() -> None:
     else:
         with tempfile.TemporaryDirectory() as tmp:
             alvo = Path(tmp) / "sonda.html"
-            alvo.write_text(html.replace("</body>", SONDA + "</body>"), encoding="utf8")
+            alvo.write_text(html.replace("</body>", sonda(abas) + "</body>"), encoding="utf8")
             r = subprocess.run(
                 [chrome, "--headless", "--no-sandbox", "--disable-gpu",
                  "--virtual-time-budget=9000", "--dump-dom", alvo.as_uri()],
@@ -176,7 +205,9 @@ def main() -> None:
                     probs.append("botão da aba não existe")
                 if visivel != "visivel":
                     probs.append(f"painel {visivel.lower()} depois do clique")
-                if tamanho < CONTEUDO_MINIMO:
+                minimo = (CONTEUDO_MINIMO_ACOMP if aba == "acompanhamento"
+                          else CONTEUDO_MINIMO)
+                if tamanho < minimo:
                     probs.append(f"painel praticamente vazio ({tamanho} bytes)")
                 falhou += bool(probs)
                 print(f"{'ok  ' if not probs else 'FALHOU'} aba {aba:<10} {tamanho:>6} bytes"
@@ -189,7 +220,7 @@ def main() -> None:
     if falhou:
         print(f"{falhou} problema(s). A página pública não está pronta para publicar.")
         raise SystemExit(1)
-    print(f"{len(ABAS)} abas funcionando, sem erro de JavaScript, sem vazamento.")
+    print(f"{len(abas)} abas funcionando, sem erro de JavaScript, sem vazamento.")
 
 
 if __name__ == "__main__":

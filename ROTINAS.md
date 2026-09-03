@@ -53,6 +53,15 @@ Cron em UTC: `0 5 * * *`
 > começando com `FALHA:`, cole a mensagem de erro exata e diga que nenhuma
 > rodada foi publicada hoje. Não tente contornar e não republique por cima.
 >
+> ### PASSO 1.5 — A suíte, antes de qualquer coleta
+> ```
+> python3 tools/testes.py --rapido
+> ```
+> Trinta segundos, e responde a pergunta que nenhuma outra etapa responde: os
+> scripts ainda fazem o que dizem? Se reprovar, **pare e relate começando com
+> `FALHA:`** — uma coleta feita sobre filtro quebrado produz um radar vazio que
+> ninguém questiona.
+>
 > ### PASSO 2 — Camada 1: o PNCP
 > ```
 > python3 tools/coleta_pncp.py --saida candidatos.json
@@ -69,6 +78,11 @@ Cron em UTC: `0 5 * * *`
 >
 > Anote de `candidatos.json → cobertura`: `brutos`, `esperados`, `paginas`,
 > `paginas_perdidas`, `candidatos`, `modalidades_falhas`, `erros`.
+>
+> Se `brutos` vier muito abaixo das ~5.800 habituais **mas igual a `esperados`**,
+> não há problema: a varredura está completa e o dia é que foi magro (feriado,
+> em geral). O validador trata isso como aviso, não como falha. Se `brutos` for
+> menor que `esperados`, aí sim: repita.
 >
 > ### PASSO 3 — Camada 2: o que o PNCP não cobre
 > ```

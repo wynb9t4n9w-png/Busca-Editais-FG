@@ -52,6 +52,10 @@ RESET = (
 DADOS_RE = re.compile(r"(/\*DADOS\*/)(.*?)(/\*FIM\*/)", re.S)
 NAV_RE = re.compile(r'\["radar","prazos","arquivo","cobertura","acompanhamento"\]')
 TAB_RE = re.compile(r"[ \t]*<button[^>]*id=\"tab-acompanhamento\"[^>]*>.*?</button>\s*\n?", re.S)
+# O painel tem de sair junto com o botão. Sozinho ele é inerte — irPara() já
+# não o abre — mas o aria-labelledby continua apontando para um id que deixou
+# de existir, e um leitor de tela que procure esse rótulo não acha nada.
+PAINEL_RE = re.compile(r"[ \t]*<section[^>]*id=\"p-acompanhamento\"[^>]*>.*?</section>\s*\n?", re.S)
 TITLE_RE = re.compile(r"<title>(.*?)</title>", re.S)
 
 
@@ -102,6 +106,14 @@ def build(origem: Path, destino: Path) -> dict:
     corpo, n = TAB_RE.subn("", corpo)
     if n == 0:
         raise SystemExit("FALHA: aba 'Acompanhamento' não encontrada — o layout mudou, revise o script.")
+
+    corpo, n = PAINEL_RE.subn("", corpo)
+    if n == 0:
+        raise SystemExit(
+            "FALHA: o painel 'p-acompanhamento' não foi encontrado. Sem removê-lo, "
+            "o espelho fica com um aria-labelledby apontando para um botão que já "
+            "não existe — revise o script."
+        )
 
     corpo, n = NAV_RE.subn('["radar","prazos","arquivo","cobertura"]', corpo)
     if n == 0:

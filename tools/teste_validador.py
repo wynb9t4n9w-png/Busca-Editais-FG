@@ -91,9 +91,26 @@ def _pagina_perdida(e):
 def _conta_nao_fecha(e):
     e["rodadas"][0]["cobertura"]["pncp"]["brutos"] = 4900   # esperados seguem 5453
 
-def _api_muda(e):
+def _feriado(e):
+    # Dia magro em que a conta FECHA: 7 de setembro cai numa segunda, e o PNCP
+    # publica pouco. A varredura está completa — reprovar aqui seria um alarme
+    # falso semanal, do tipo que ensina a ignorar o alarme.
     p = e["rodadas"][0]["cobertura"]["pncp"]
-    p["brutos"] = p["esperados"] = 40
+    p["brutos"] = p["esperados"] = 180
+    p["candidatos"] = 2
+
+def _sem_esperados_e_vazio(e):
+    # Aqui não há como conferir completude: a API não disse quanto havia. É o
+    # único caso em que o piso cego decide, e é como uma fonte muda de resposta
+    # sem avisar.
+    p = e["rodadas"][0]["cobertura"]["pncp"]
+    p["esperados"] = 0
+    p["brutos"] = 12
+    p["candidatos"] = 0
+
+def _sem_esperados_mas_cheio(e):
+    p = e["rodadas"][0]["cobertura"]["pncp"]
+    p["esperados"] = 0
 
 def _modalidade_caiu(e):
     e["rodadas"][0]["cobertura"]["pncp"]["modalidades_falhas"] = ["Concorrência - Eletrônica"]
@@ -143,7 +160,9 @@ CASOS = [
     ("incidente das 56 segundos", _incidente_56s, True, "não aconteceu"),
     ("página do PNCP perdida", _pagina_perdida, True, "se perderam"),
     ("colheu menos do que a API prometeu", _conta_nao_fecha, True, "não foram vistas"),
-    ("API mudou o dia inteiro", _api_muda, True, "o piso para"),
+    ("feriado: pouco volume, conta fechada", _feriado, False, "ok"),
+    ("esperados sumiu e veio quase nada", _sem_esperados_e_vazio, True, "não tenha respondido"),
+    ("esperados sumiu mas veio volume normal", _sem_esperados_mas_cheio, False, "ok"),
     ("modalidade inteira falhou", _modalidade_caiu, True, "por inteiro"),
     ("camada 2 não rodou", _sem_camada2, True, "obrigatória"),
     ("camada 2 visitou 2 fontes", _camada2_rasa, True, "fontes externas visitadas"),

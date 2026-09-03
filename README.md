@@ -206,7 +206,7 @@ A rodada é recusada, com saída 1, quando:
 | colheu menos do que a API prometeu | faltou página; cada uma são até 50 oportunidades |
 | página perdida mesmo após repescagem | idem, e o script já tentou duas vezes |
 | modalidade falhou por inteiro | a varredura está incompleta |
-| menos de 1.500 contratações em dia útil | a API não respondeu (o piso de fim de semana é 60) |
+| a API não disse quantas existiam e vieram menos de 40 | sem essa conta, é a fonte que mudou de resposta |
 | camada 2 ausente, ou menos de 8 fontes | o segmento mais aderente ficou de fora |
 | nenhuma fonte externa abriu | ou a rede está bloqueada, ou a camada não rodou |
 | triados < candidatos colhidos | alguém não foi lido, e pode ser o contrato do ano |
@@ -215,6 +215,14 @@ A rodada é recusada, com saída 1, quando:
 | `auth` sumiu | o estado foi corrompido |
 | edital sem veredito, ou quente sem justificativa | não passou pela triagem |
 | id duplicado, status fora da lista, link sem esquema | dado inventado |
+
+**Volume baixo não reprova, desde que a conta feche.** A API informa quantos
+registros existem por modalidade, então a pergunta certa não é "veio bastante
+coisa?" e sim "veio tudo o que havia?". Um feriado com 180 contratações e uma
+quarta-feira com 5.849 são as duas corretas. Um portão que reprovasse feriado —
+e 7 de setembro cai numa segunda — viraria o alarme que se aprende a ignorar.
+O piso absoluto sobrou só para o caso em que a verificação não existe: a fonte
+parou de informar o total.
 
 **Rodada sem nada quente passa.** Dia sem edital aderente é resultado legítimo —
 foi o que aconteceu na camada 2 do dia 03/09: nove fontes visitadas, cinco
@@ -238,20 +246,39 @@ proteção que sobrevive a quem não leu o prompt.
 ## Testes
 
 ```bash
-python3 tools/teste_perfil.py      # o filtro, contra objetos reais do PNCP
-python3 tools/teste_validador.py   # o portão, em 18 cenários
-python3 tools/teste_pagina.py      # a página num navegador, e o vazamento
+python3 tools/testes.py            # a suíte inteira
+python3 tools/testes.py --rapido   # pula o que precisa de rede
 ```
 
-O primeiro usa objetos **reais** colhidos em 02/09/2026, não exemplos
-inventados: nove casos de ouro que precisam passar, dez de lixo que precisam ser
-barrados, e a trava contra o veto sem delimitador. O segundo reproduz o
-incidente das 56 segundos e a conta de cobertura que a Pauta Thutor não tinha
-como fazer. O terceiro abre `docs/index.html` no Chromium, **clica em cada
-aba** — porque remover a aba administrativa já quebrou as outras uma vez, na
+Cinco testes, e nenhum decorativo — cada um existe por causa de uma falha que
+já aconteceu, aqui ou na Pauta Thutor. O denominador comum é o modo de falha
+que este projeto teme: **o silencioso**. Uma coleta que não acha nada se parece
+com um dia sem oportunidade, e um radar vazio não reclama.
+
+| Teste | O que protege |
+|---|---|
+| `teste_perfil.py` | O filtro, contra objetos **reais** de 02/09/2026 — nove casos de ouro que precisam passar, dez de lixo que precisam ser barrados. Inclui a trava contra veto de palavra curta sem `\b`, que já derrubou o melhor edital do dia. |
+| `teste_validador.py` | O portão, em 21 cenários: o incidente das 56 segundos, a conta de cobertura, a fronteira do `db` e a distinção entre feriado e falha. |
+| `teste_coleta.py` | O **contrato com a API do PNCP**, falando com ela de verdade. |
+| `teste_pagina.py` | As duas versões da página num Chromium real, clicando em **cada aba**. |
+
+O teste da API merece explicação, porque é o único que gasta rede. Se o PNCP
+renomear `objetoCompra`, mudar `valorTotalEstimado` de número para texto ou
+parar de informar `totalRegistros`, **nada estoura**: a coleta roda, os filtros
+não encontram nada, e o radar amanhece vazio. O validador tampouco pega — ele
+confere que a coleta viu tudo o que a API prometeu, e uma API que promete zero
+cumpre a promessa. Por isso o teste conversa com a API real e não com um dublê:
+um dublê congela a resposta de hoje e passa a confirmar a suposição de ontem,
+que é exatamente o que se quer detectar. Sem rede, ele avisa e sai sem reprovar.
+
+O teste de página cobre as duas versões — a pública e a do artifact, com uma aba
+a mais. A da direita não era testada por ninguém até 03/09/2026. Ele clica em
+cada aba porque remover a aba administrativa já quebrou as outras uma vez, na
 Pauta Thutor, quando `irPara()` continuou percorrendo a lista antiga e
-`el("tab-...")` virou `null` — e depois lê o JSON embutido para conferir que
-`auth`, `status` e `nota` não atravessaram.
+`el("tab-...")` virou `null`. Na versão pública ele também lê o JSON embutido,
+para conferir que `auth`, `status` e `nota` não atravessaram, e que o CSS veio
+junto — este último por causa de uma publicação real em que o estilo ficou para
+trás e três verificações aprovaram assim mesmo.
 
 ## Limitações conhecidas
 

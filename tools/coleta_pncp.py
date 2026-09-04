@@ -35,7 +35,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).parent))
-from perfil import avalia, LIMIAR_CANDIDATO  # noqa: E402
+from perfil import avalia, normaliza, LIMIAR_CANDIDATO  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
@@ -144,7 +144,24 @@ def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
 # Modalidades de contratação direta. O PNCP publica o extrato delas DEPOIS do
 # fato — foi assim que o radar mostrou como "super oportunidade" um contrato
 # de R$ 1,5 mi que o CRECI/SC já havia assinado com a UFSC no dia anterior.
-DIRETAS = ("dispensa", "inexigibilidade")
+DIRETAS = ("dispensa",)
+
+# Inexigibilidade não é uma disputa que já terminou — é uma disputa que a lei
+# declarou INVIÁVEL. O art. 74 da Lei 14.133 só a autoriza quando o fornecedor é
+# singular: exclusivo, artista consagrado, ou de notória especialização. O órgão
+# escolhe QUEM antes de abrir o processo, e o que se publica é a justificativa
+# dessa escolha.
+#
+# Foi por não saber disso que o radar exibiu como oportunidade um processo de
+# R$ 30,5 milhões da SEDUC-PA cujo próprio anexo se chamava
+# "Contrato_n__046.2026_-_FGV.pdf". O item ainda dizia "Em andamento", porque o
+# status é escrituração que os órgãos atualizam tarde — e o radar acreditou nele.
+#
+# Isso NÃO torna a inexigibilidade inútil: o inciso III cobre exatamente os
+# serviços que a Thutor vende, e saber quais órgãos contratam consultoria por
+# essa via, de quem e por quanto, é inteligência de primeira. O que ela nunca é
+# é um edital para disputar.
+INEXIGIVEL = ("inexigibilidade", "inexigivel", "inaplicabilidade")
 
 
 def disputa_provisoria(reg: dict) -> str:
@@ -159,9 +176,10 @@ def disputa_provisoria(reg: dict) -> str:
     Medido em 02/09/2026: 27 das 33 contratações aderentes do dia não tinham
     janela nenhuma. O radar estava mostrando, em sua maioria, o retrovisor.
 
+      inexigivel    a lei declarou a competição inviável — nunca foi disputa
       aberto        prazo de proposta ainda corre
       encerrado     havia prazo, e passou
-      decidido      contratação direta sem janela: o extrato veio depois do fato
+      decidido      dispensa direta sem janela: o extrato veio depois do fato
       indeterminado modalidade com disputa mas sem prazo declarado
 
     Esta é DEDUÇÃO, a partir do que a listagem em massa entrega — 5.849 registros
@@ -174,13 +192,20 @@ def disputa_provisoria(reg: dict) -> str:
     para o radar é o dela; este aqui é o palpite que ordena a fila enquanto o
     outro não chega.
     """
+    # A modalidade decide antes do prazo: um processo de inexigibilidade com
+    # janela declarada continua sem disputa, porque o fornecedor já foi escolhido.
+    if any(x in normaliza(reg.get("modalidadeNome")) for x in INEXIGIVEL):
+        return "inexigivel"
+
     fim = reg.get("dataEncerramentoProposta")
     if fim:
         try:
             return "aberto" if datetime.fromisoformat(fim).date() >= datetime.now(TZ).date() else "encerrado"
         except ValueError:
             return "indeterminado"
-    modalidade = (reg.get("modalidadeNome") or "").lower()
+    modalidade = normaliza(reg.get("modalidadeNome"))
+    if any(x in modalidade for x in INEXIGIVEL):
+        return "inexigivel"
     return "decidido" if any(d in modalidade for d in DIRETAS) else "indeterminado"
 
 
@@ -284,7 +309,8 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     # Disputáveis primeiro: o que já foi decidido continua no radar como
     # inteligência de mercado, mas nunca disputa a atenção com o que ainda dá
     # para ganhar.
-    ORDEM = {"aberto": 0, "indeterminado": 1, "decidido": 2, "encerrado": 3}
+    ORDEM = {"aberto": 0, "indeterminado": 1, "relicita": 1,
+             "decidido": 2, "inexigivel": 2, "encerrado": 3, "cancelado": 4}
     candidatos.sort(key=lambda c: (ORDEM.get(c["disputa"], 9), -c["score"], -(c["valor"] or 0)))
     fim = datetime.now(TZ)
 

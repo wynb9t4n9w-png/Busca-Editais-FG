@@ -119,6 +119,38 @@ LIXO = [
 ]
 
 
+def _testa_disputa(falhas: list[str]) -> None:
+    """
+    A modalidade decide antes do prazo e antes do status do item.
+
+    Inexigibilidade não é disputa encerrada, é disputa que a lei declarou
+    inviável — e o radar já exibiu como oportunidade um processo de R$ 30,5
+    milhões da SEDUC-PA com o contrato da FGV anexado, porque o item ainda
+    dizia "Em andamento".
+    """
+    from coleta_pncp import disputa_provisoria
+    casos = [
+        ({"dataEncerramentoProposta": None, "modalidadeNome": "Inexigibilidade"},
+         "inexigivel", "inexigibilidade sem prazo"),
+        ({"dataEncerramentoProposta": "2099-01-01T09:00:00",
+          "modalidadeNome": "Inexigibilidade"},
+         "inexigivel", "inexigibilidade COM prazo declarado — a modalidade manda"),
+        ({"dataEncerramentoProposta": None, "modalidadeNome": "Dispensa"},
+         "decidido", "dispensa direta"),
+        ({"dataEncerramentoProposta": "2099-01-01T09:00:00", "modalidadeNome": "Dispensa"},
+         "aberto", "dispensa eletrônica, com janela real"),
+        ({"dataEncerramentoProposta": "2099-01-01T09:00:00",
+          "modalidadeNome": "Pregão - Eletrônico"}, "aberto", "pregão em aberto"),
+    ]
+    print("\n--- a modalidade decide a disputa ---")
+    for reg, esperado, porque in casos:
+        got = disputa_provisoria(reg)
+        ok = got == esperado
+        print(f"  {'ok ' if ok else 'ERRO'} {got:14s} · {porque}")
+        if not ok:
+            falhas.append(f"disputa de {porque}: esperado {esperado}, veio {got}")
+
+
 def main() -> None:
     falhas = []
 
@@ -169,6 +201,8 @@ def main() -> None:
         falhas.append(f"a ordem de valor não faz sentido: grande {gra['score']}, "
                       f"sigiloso {sig['score']}, pequeno {peq['score']}.")
 
+    _testa_disputa(falhas)
+
     print()
     if falhas:
         print(f"FALHA: {len(falhas)} problema(s) no filtro.")
@@ -176,7 +210,7 @@ def main() -> None:
             print(f"  - {f}")
         raise SystemExit(1)
     print(f"ok  {len(OURO)} casos de ouro passam, {len(LIXO)} casos de lixo barrados, "
-          "vetos delimitados, valor não elimina.")
+          "vetos delimitados, valor não elimina, inexigibilidade nunca é disputa.")
 
 
 if __name__ == "__main__":

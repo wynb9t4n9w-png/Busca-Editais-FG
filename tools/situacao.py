@@ -37,9 +37,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from contratos import procura as procura_contrato  # noqa: E402
+from perfil import normaliza  # noqa: E402
 
 BASE = "https://pncp.gov.br/api/pncp/v1/orgaos"
 PAUSA_429, PAUSA_ENTRE = 12.0, 1.2
+
+# Modalidades em que a lei declara a competição INVIÁVEL. Não é uma disputa que
+# terminou; é uma que nunca existiu, porque o fornecedor é singular por premissa
+# (Lei 14.133, art. 74). O status do item é irrelevante aqui.
+INEXIGIVEL = ("inexigibilidade", "inexigivel", "inaplicabilidade")
+
+# Títulos e tipos de documento que denunciam um desfecho já assinado. O status do
+# item é escrituração administrativa, e órgão atualiza tarde: no processo de
+# R$ 30,5 milhões da SEDUC-PA o item dizia "Em andamento" com temResultado=False
+# enquanto o anexo se chamava "Contrato_n__046.2026_-_FGV.pdf". O papel sabia
+# antes do campo.
+FECHOU = ("contrato", "termo de contrato", "extrato de contrato", "ratificac",
+          "homologac", "adjudicac", "termo de adjudicacao", "ordem de servico",
+          "empenho", "ata de registro")
 
 # situacaoCompraItem, conforme o PNCP devolve.
 SITUACOES = {
@@ -57,6 +72,7 @@ SITUACOES = {
 # eles, porque basta um item homologado para não haver mais o que disputar ali.
 PRIORIDADE = ["homologado", "cancelado", "fracassado", "deserto", "em_disputa"]
 PARA_DISPUTA = {
+    "inexigivel": "inexigivel",
     "em_disputa": "aberto",
     "homologado": "decidido",
     "cancelado": "cancelado",
@@ -96,8 +112,41 @@ def partes(edital: dict) -> tuple[str, str, str] | None:
     return cnpj, m.group(3), m.group(2).lstrip("0") or "0"
 
 
-def confere(cnpj: str, ano: str, seq: str) -> dict:
+def documentos(cnpj: str, ano: str, seq: str) -> tuple[list[str], str | None]:
+    """
+    Os anexos do processo, e o primeiro que indique desfecho.
+
+    Uma chamada barata que responde o que o status do item às vezes esconde:
+    contrato assinado, ratificação, homologação. Devolve (títulos, achado).
+    """
+    st, arqs = get(f"/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{seq}/arquivos")
+    if st != 200 or not isinstance(arqs, list):
+        return [], None
+    titulos = []
+    achado = None
+    for a in arqs:
+        rotulo = f"{a.get('tipoDocumentoNome') or ''} {a.get('titulo') or ''}".strip()
+        titulos.append(rotulo)
+        if achado is None:
+            alvo = normaliza(rotulo)
+            if any(p in alvo for p in FECHOU):
+                achado = rotulo
+    return titulos, achado
+
+
+def confere(cnpj: str, ano: str, seq: str, modalidade: str | None = None) -> dict:
     """A situação de uma contratação, direto da fonte."""
+    # A modalidade decide antes de qualquer status: inexigibilidade não é uma
+    # disputa em andamento, é uma disputa que a lei declarou inviável.
+    if modalidade and any(x in normaliza(modalidade) for x in INEXIGIVEL):
+        r = {"situacao": "inexigivel", "disputa": "inexigivel", "itens": 0,
+             "motivo": "Lei 14.133 art. 74: competição inviável, fornecedor singular"}
+        titulos, fechou = documentos(cnpj, ano, seq)
+        if fechou:
+            r["documento_fecho"] = fechou
+        _vencedor_do_item(cnpj, ano, seq, r)
+        return r
+
     st, itens = get(f"/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{seq}/itens")
     if st != 200 or not isinstance(itens, list) or not itens:
         # Sem itens publicados não há como responder pela via autoritativa.
@@ -115,10 +164,34 @@ def confere(cnpj: str, ano: str, seq: str) -> dict:
          "disputa": PARA_DISPUTA.get(situacao, "indeterminado"),
          "por_item": estados}
 
+    if situacao == "em_disputa":
+        # O status do item diz "Em andamento", mas isso é escrituração. Se o
+        # processo já tem contrato ou ratificação anexada, a disputa acabou e
+        # ninguém atualizou o campo. Foi assim que um processo de R$ 30,5 mi
+        # apareceu como oportunidade com o contrato da FGV no anexo.
+        time.sleep(PAUSA_ENTRE)
+        titulos, fechou = documentos(cnpj, ano, seq)
+        if fechou:
+            r["situacao"] = "homologado"
+            r["disputa"] = "decidido"
+            r["documento_fecho"] = fechou
+            r["motivo"] = ("item ainda em andamento, mas o processo já tem "
+                           f"documento de fecho anexado: {fechou}")
+            _vencedor_do_item(cnpj, ano, seq, r)
+        return r
+
     if situacao != "homologado":
         return r
 
-    # Homologado: quem ganhou, e por quanto.
+    _vencedor_do_item(cnpj, ano, seq, r)
+    return r
+
+
+def _vencedor_do_item(cnpj: str, ano: str, seq: str, r: dict) -> None:
+    """Quem ganhou, quando o resultado do item já foi publicado."""
+    st, itens = get(f"/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{seq}/itens")
+    if st != 200 or not isinstance(itens, list):
+        return
     for it in itens:
         if not it.get("temResultado"):
             continue
@@ -134,8 +207,7 @@ def confere(cnpj: str, ano: str, seq: str) -> dict:
                 "porte": v.get("porteFornecedorNome"),
                 "origem": "resultado do item",
             }
-            break
-    return r
+            return
 
 
 def confere_edital(e: dict) -> dict:
@@ -143,7 +215,7 @@ def confere_edital(e: dict) -> dict:
     p = partes(e)
     if not p:
         return {"situacao": "desconhecida", "motivo": "id fora do formato esperado"}
-    r = confere(*p)
+    r = confere(*p, modalidade=e.get("modalidade"))
     if r["situacao"] != "desconhecida":
         return r
 
@@ -203,12 +275,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--do-estado", metavar="ARQUIVO")
-    ap.add_argument("resto", nargs="*", help="cnpj ano sequencial")
+    ap.add_argument("resto", nargs="*", help="cnpj ano sequencial [modalidade]")
     a = ap.parse_args()
     if a.do_estado:
         do_estado(carrega(Path(a.do_estado)))
         return
-    if len(a.resto) != 3:
+    if len(a.resto) not in (3, 4):
         raise SystemExit(__doc__)
     print(json.dumps(confere(*a.resto), ensure_ascii=False, indent=1))
 

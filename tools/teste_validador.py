@@ -150,6 +150,19 @@ def _quente_com_prazo_vencido(e):
     e["editais"][0]["disputa"] = "encerrado"
     e["editais"][0]["encerramento"] = (HOJE - timedelta(days=5)).isoformat(timespec="seconds")
 
+def _quente_em_inexigibilidade(e):
+    # O caso da SEDUC-PA: R$ 30,5 mi, item "Em andamento", e o contrato com a
+    # FGV anexado ao próprio processo. Inexigibilidade nunca foi disputa.
+    e["editais"][0]["disputa"] = "inexigivel"
+    e["editais"][0]["modalidade"] = "Inexigibilidade"
+
+def _morno_em_inexigibilidade(e):
+    # Precisa passar: é inteligência de mercado legítima, e das melhores.
+    e["editais"][0]["disputa"] = "inexigivel"
+    e["editais"][0]["modalidade"] = "Inexigibilidade"
+    e["editais"][0]["veredito"] = "morno"
+    e["editais"][0]["documento_fecho"] = "Outros Documentos Contrato_046.2026_-_FGV.pdf"
+
 def _sem_disputa(e):
     e["editais"][0].pop("disputa")
 
@@ -204,6 +217,8 @@ CASOS = [
     ("nota escrita no estado", _nota_no_estado, True, "não pertence ao estado"),
     ("quente numa contratação direta", _quente_ja_contratado, True, "ainda pode disputar"),
     ("quente com prazo vencido", _quente_com_prazo_vencido, True, "ainda pode disputar"),
+    ("quente numa inexigibilidade", _quente_em_inexigibilidade, True, "INEXIGIBILIDADE"),
+    ("morno numa inexigibilidade, com o anexo do contrato", _morno_em_inexigibilidade, False, "ok"),
     ("campo disputa ausente", _sem_disputa, True, "disputa"),
     ("situação não conferida na fonte", _sem_conferencia, True, "conferida na fonte"),
     ("conferência não cobriu o radar", _conferencia_parcial, True, "conferidos na fonte"),

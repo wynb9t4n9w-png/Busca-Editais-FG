@@ -253,6 +253,7 @@ Cada edital carrega agora um campo `disputa`:
 | `aberto` | o prazo de proposta ainda corre — é oportunidade |
 | `encerrado` | havia prazo, e passou |
 | `decidido` | contratação direta sem janela: o fornecedor já estava escolhido |
+| `inexigivel` | modalidade Inexigibilidade: a lei declarou a competição inviável. Nunca foi disputa e nunca vai ser |
 | `relicita` | **deserto** (ninguém apareceu) ou **fracassado** (apareceram e foram desclassificados) — o órgão quis comprar e não conseguiu, e costuma voltar. É disputável, e das melhores horas de aparecer |
 | `cancelado` | anulado ou revogado |
 | `indeterminado` | modalidade com disputa mas sem prazo declarado — o órgão publicou incompleto; não descarte, confira |
@@ -263,6 +264,40 @@ frente da próxima rodada.
 
 O Radar e a aba Prazos mostram só o que é disputável, e o validador **reprova a
 rodada** que marcar como `quente` algo que não seja.
+
+### Inexigibilidade não é uma disputa: é a ausência de uma
+
+O campo `disputa` nasceu olhando para o prazo, e por isso ainda deixava passar
+uma classe inteira de falso positivo. Em 04/09/2026 o radar exibiu como
+oportunidade um processo de **R$ 30,5 milhões** da SEDUC-PA — estruturação de
+Unidade de Assessoramento Técnico, metodologia, governança, indicadores: o
+portfólio da casa quase palavra por palavra. O item ainda dizia "Em andamento" e
+`temResultado` era `false`, então tanto a dedução quanto `situacao.py` o
+classificaram como `aberto`. Um dos anexos do próprio processo se chamava
+`Contrato_n__046.2026_-_FGV.pdf`.
+
+O erro não estava na leitura do status. Estava em perguntar pelo prazo quando a
+pergunta certa era pela **modalidade**. O art. 74 da Lei 14.133/2021 só autoriza
+inexigibilidade quando a competição é *inviável* — fornecedor singular, notória
+especialização, exclusividade. Não existe janela para entrar, hoje ou daqui a
+uma semana: a decisão sobre quem executa é premissa do processo, não resultado
+dele. Uma inexigibilidade "em andamento" está apenas com a papelada em trânsito.
+
+Daí a regra, gravada em `coleta_pncp.py` e reforçada em `situacao.py`:
+**a modalidade decide antes do prazo.** Se a modalidade é Inexigibilidade, a
+disputa é `inexigivel`, sem consultar item, resultado ou data — e `inexigivel`
+não é disputável, então o edital nunca chega ao Radar nem à aba Prazos, e o
+validador reprova a rodada que o marque como `quente`.
+
+O tamanho do problema também foi medido: **18 dos 38 editais** do estado eram
+inexigibilidade. Um deles era o único `quente` do dia (SAAE Guanhães, R$ 180
+mil), e ele também não era oportunidade.
+
+`situacao.py` ganhou no mesmo movimento uma segunda checagem, para o caso
+inverso: quando o item **está** em disputa, ele lê `/arquivos` e procura anexo
+cujo nome denuncie o fecho (contrato, ratificação, homologação, adjudicação,
+empenho, ata de registro). Foi esse anexo que denunciou a FGV, e é ele que passa
+a denunciar os próximos.
 
 ### O retrovisor vale dinheiro
 

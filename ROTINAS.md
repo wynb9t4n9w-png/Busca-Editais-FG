@@ -124,6 +124,13 @@ Cron em UTC: `0 5 * * *`
 > edital ainda disputável. Grave em cada edital o `disputa` e o `situacao_item`
 > que o script devolve, e o `vencedor` quando houver.
 >
+> O script decide em duas frentes. Se a modalidade é Inexigibilidade, ele
+> devolve `disputa: "inexigivel"` na hora, sem consultar item nem prazo — não há
+> o que conferir numa disputa que a lei declarou inviável. Se o item aparece
+> como em disputa, ele ainda abre `/arquivos` e procura anexo cujo nome denuncie
+> o fecho (contrato, ratificação, homologação, adjudicação, empenho, ata de
+> registro); achando, devolve `documento_fecho` junto.
+>
 > Conte quantos foram conferidos e registre em `cobertura.conferidos`. O
 > validador exige que o número cubra todo o radar.
 >
@@ -133,8 +140,19 @@ Cron em UTC: `0 5 * * *`
 > **Antes de qualquer veredito, olhe o campo `disputa`** que a coleta calculou.
 > Ele responde à pergunta que o radar não fazia — e por não fazer, exibiu como
 > oportunidade quente um contrato de R$ 1,5 mi que o CRECI/SC já tinha assinado
-> com a UFSC. Só `aberto` e `indeterminado` podem ser quentes; o validador
-> reprova o contrário.
+> com a UFSC. Só `aberto`, `indeterminado` e `relicita` podem ser quentes; o
+> validador reprova o contrário.
+>
+> **`inexigivel` nunca é oportunidade, em nenhuma circunstância.** A modalidade
+> Inexigibilidade só existe, pelo art. 74 da Lei 14.133/2021, quando a
+> competição é *inviável*: fornecedor singular, notória especialização,
+> exclusividade. Não há janela para entrar — o fornecedor é premissa do
+> processo, não resultado dele. Um item "Em andamento" numa inexigibilidade
+> significa papelada em trânsito, não disputa aberta. Foi por ignorar isso que o
+> radar exibiu um processo de R$ 30,5 milhões da SEDUC-PA cujo próprio anexo se
+> chamava `Contrato_n__046.2026_-_FGV.pdf`. Nunca marque `quente` uma
+> inexigibilidade; ela pode ser `morno` apenas quando vale como referência de
+> mercado, e a justificativa precisa dizer isso com todas as letras.
 >
 > - `quente` — aderência direta ao portfólio, **`disputa` aberto ou
 >   indeterminado**, e porte compatível com o ticket mínimo (R$ 50 mil/mês; um

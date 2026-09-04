@@ -157,11 +157,20 @@ def _quente_em_inexigibilidade(e):
     e["editais"][0]["modalidade"] = "Inexigibilidade"
 
 def _morno_em_inexigibilidade(e):
-    # Precisa passar: é inteligência de mercado legítima, e das melhores.
+    # Já foi o caso legítimo: inexigibilidade como referência de mercado, marcada
+    # no arquivo. Deixou de ser. Um arquivo com 18 de 38 registros que nunca
+    # foram disputáveis lê como uma fila de oportunidades perdidas — e não foram
+    # oportunidades. O rebaixamento para morno não basta: tem de sair do estado.
     e["editais"][0]["disputa"] = "inexigivel"
     e["editais"][0]["modalidade"] = "Inexigibilidade"
     e["editais"][0]["veredito"] = "morno"
     e["editais"][0]["documento_fecho"] = "Outros Documentos Contrato_046.2026_-_FGV.pdf"
+
+def _frio_em_inexigibilidade(e):
+    # Nem escondido entre os frios: o corte é por modalidade, não por veredito.
+    e["editais"][0]["disputa"] = "inexigivel"
+    e["editais"][0]["modalidade"] = "Inexigibilidade"
+    e["editais"][0]["veredito"] = "frio"
 
 def _sem_disputa(e):
     e["editais"][0].pop("disputa")
@@ -218,7 +227,8 @@ CASOS = [
     ("quente numa contratação direta", _quente_ja_contratado, True, "ainda pode disputar"),
     ("quente com prazo vencido", _quente_com_prazo_vencido, True, "ainda pode disputar"),
     ("quente numa inexigibilidade", _quente_em_inexigibilidade, True, "INEXIGIBILIDADE"),
-    ("morno numa inexigibilidade, com o anexo do contrato", _morno_em_inexigibilidade, False, "ok"),
+    ("morno numa inexigibilidade", _morno_em_inexigibilidade, True, "INEXIGIBILIDADE"),
+    ("frio numa inexigibilidade", _frio_em_inexigibilidade, True, "INEXIGIBILIDADE"),
     ("campo disputa ausente", _sem_disputa, True, "disputa"),
     ("situação não conferida na fonte", _sem_conferencia, True, "conferida na fonte"),
     ("conferência não cobriu o radar", _conferencia_parcial, True, "conferidos na fonte"),

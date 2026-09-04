@@ -30,7 +30,7 @@ import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-ABAS_PUBLICAS = ("radar", "prazos", "arquivo", "cobertura")
+ABAS_PUBLICAS = ("radar", "prazos", "arquivo", "mercado", "cobertura")
 ABAS_ARTIFACT = ABAS_PUBLICAS + ("acompanhamento",)
 CONTEUDO_MINIMO = 200  # bytes de innerHTML; painel vazio fica perto de zero
 # Num navegador comum não existe window.claude, então a aba Acompanhamento

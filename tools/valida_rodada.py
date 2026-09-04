@@ -42,11 +42,17 @@ DISPUTA = {"aberto", "indeterminado", "decidido", "encerrado", "relicita",
 # "relicita" (deserto ou fracassado) É disputável, e das melhores: o órgão quis
 # comprar, não conseguiu, e costuma voltar. Quem já leu o edital chega na frente.
 #
-# "inexigivel" nunca é. Não é uma disputa que terminou — é uma que a lei declarou
-# inviável (art. 74 da 14.133), com o fornecedor escolhido antes de o processo
-# abrir. O radar chegou a exibir como oportunidade um processo de R$ 30,5 milhões
-# da SEDUC-PA cujo próprio anexo se chamava "Contrato_046.2026_-_FGV.pdf", porque
-# o status do item ainda dizia "Em andamento".
+# "inexigivel" não é disputável — e mais que isso: não entra no radar de jeito
+# nenhum. Não é uma disputa que terminou, é uma que a lei declarou inviável
+# (art. 74 da 14.133), com o fornecedor escolhido antes de o processo abrir. O
+# radar chegou a exibir como oportunidade um processo de R$ 30,5 milhões da
+# SEDUC-PA cujo próprio anexo se chamava "Contrato_046.2026_-_FGV.pdf", porque o
+# status do item ainda dizia "Em andamento". Marcá-lo como "já contratado" no
+# arquivo resolvia o falso positivo e criava outro problema: 18 dos 38 editais
+# viravam registro de oportunidade que nunca existiu. O corte é na coleta; esta
+# checagem é a rede embaixo dele. `inexigivel` continua no domínio de DISPUTA
+# porque tools/situacao.py ainda o devolve na consulta avulsa — só não pode
+# chegar ao estado.
 DISPUTAVEL = {"aberto", "indeterminado", "relicita"}
 
 # O acompanhamento comercial — em que estágio está cada edital e as anotações da
@@ -231,18 +237,17 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
         falha(f"{onde}: disputa '{e.get('disputa')}' inválida (esperado um de "
               f"{sorted(DISPUTA)}). Sem esse campo o radar volta a tratar contrato "
               "assinado como oportunidade.")
+    elif e["disputa"] == "inexigivel":
+        falha(f"{onde}: INEXIGIBILIDADE no estado. Ela não entra no radar — nem "
+              "como quente, nem como morno, nem como frio. tools/coleta_pncp.py "
+              "corta por modalidade antes de o candidato existir, e este edital "
+              "chegou por outro caminho: camada 2, ou um registro antigo que "
+              "sobreviveu à purga. Remova-o do estado.")
     elif e.get("veredito") == "quente" and e["disputa"] not in DISPUTAVEL:
-        falha(
-            f"{onde}: veredito 'quente' num edital '{e['disputa']}'. Quente significa "
-            "que a Thutor ainda pode disputar — e não dá para disputar contratação "
-            "direta sem janela de proposta, nem prazo que já venceu. Rebaixe para "
-            "morno e diga na justificativa que serve como referência de mercado."
-            if e["disputa"] != "inexigivel" else
-            f"{onde}: veredito 'quente' numa INEXIGIBILIDADE. O art. 74 da Lei "
-            "14.133 só a autoriza quando a competição é inviável e o fornecedor é "
-            "singular — não há disputa para entrar, com ou sem contrato assinado. "
-            "Rebaixe para morno: vale como inteligência de mercado, e das boas."
-        )
+        falha(f"{onde}: veredito 'quente' num edital '{e['disputa']}'. Quente significa "
+              "que a Thutor ainda pode disputar — e não dá para disputar contratação "
+              "direta sem janela de proposta, nem prazo que já venceu. Rebaixe para "
+              "morno e diga na justificativa que serve como referência de mercado.")
 
     if e.get("veredito") not in VEREDITOS:
         falha(f"{onde}: veredito '{e.get('veredito')}' inválido "

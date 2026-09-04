@@ -232,6 +232,62 @@ def confere_edital(e: dict) -> dict:
     return r
 
 
+def confere_mercado(e: dict) -> dict:
+    """
+    Quem foi contratado numa inexigibilidade — a única pergunta que ela responde.
+
+    Aqui a modalidade é OMITIDA de propósito. `confere` a usa para responder
+    "ainda dá para disputar?" e, sendo inexigibilidade, devolve "inexigivel" sem
+    abrir item nenhum — o atalho certo para o radar. Só que a aba Mercado não
+    pergunta isso: ela já sabe que não houve disputa. Pergunta de quem, e por
+    quanto. Sem esta passagem a coluna "Contratado" ficava em "não publicado"
+    para sempre, e uma aba sobre quem contrata sem licitar sem o nome de quem
+    contratou é meia aba.
+    """
+    p = partes(e)
+    if not p:
+        return {}
+    r = confere(*p)              # sem `modalidade`: não queremos o atalho
+    saida = {}
+    if r.get("vencedor"):
+        saida["vencedor"] = r["vencedor"]
+    if r.get("documento_fecho"):
+        saida["documento_fecho"] = r["documento_fecho"]
+    if saida:
+        return saida
+
+    # Nada pelo item — e é justamente o que acontece com as maiores. Numa
+    # inexigibilidade o órgão frequentemente não publica item nenhum: o
+    # processo é a justificativa da escolha, não uma disputa a apurar. Sobra o
+    # anexo, e ele costuma bastar: o processo de R$ 30,5 mi da SEDUC-PA não tem
+    # um item sequer, e traz "Contrato_n__046.2026_-_FGV.pdf" pendurado.
+    time.sleep(PAUSA_ENTRE)
+    _, fechou = documentos(*p)
+    if fechou:
+        saida["documento_fecho"] = fechou
+    return saida
+
+
+def do_mercado(mercado: list[dict]) -> None:
+    if not mercado:
+        return
+    print(f"\n=== quem foi contratado nas {len(mercado)} inexigibilidades ===\n",
+          flush=True)
+    achados = 0
+    for i, e in enumerate(mercado, 1):
+        r = confere_mercado(e)
+        e.update(r)
+        nome = (e.get("vencedor") or {}).get("fornecedor")
+        if nome:
+            achados += 1
+        print(f"  [{i:2d}/{len(mercado)}] {e['orgao'][:36]:36} "
+              f"{nome[:44] if nome else '— sem resultado publicado'}", flush=True)
+        if e.get("documento_fecho") and not nome:
+            print(f"                  anexo: {e['documento_fecho'][:56]}", flush=True)
+        time.sleep(PAUSA_ENTRE)
+    print(f"\n{achados} de {len(mercado)} com fornecedor identificado.")
+
+
 def carrega(caminho: Path) -> dict:
     txt = caminho.read_text(encoding="utf8")
     if caminho.suffix.lower() == ".json":
@@ -269,6 +325,7 @@ def do_estado(estado: dict) -> None:
     print(f"\n{dict(sorted(resumo.items()))}")
     print(f"{mudou} classificaç{'ões mudaram' if mudou != 1 else 'ão mudou'} "
           "em relação à dedução da coleta.")
+    do_mercado(estado.get("mercado") or [])
 
 
 def main() -> None:

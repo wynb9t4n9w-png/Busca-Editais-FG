@@ -157,11 +157,22 @@ DIRETAS = ("dispensa",)
 # "Contrato_n__046.2026_-_FGV.pdf". O item ainda dizia "Em andamento", porque o
 # status é escrituração que os órgãos atualizam tarde — e o radar acreditou nele.
 #
-# Isso NÃO torna a inexigibilidade inútil: o inciso III cobre exatamente os
-# serviços que a Thutor vende, e saber quais órgãos contratam consultoria por
-# essa via, de quem e por quanto, é inteligência de primeira. O que ela nunca é
-# é um edital para disputar.
+# O que fazer com elas foi a pergunta difícil. Jogar fora seria perder o inciso
+# III, que cobre exatamente os serviços que a Thutor vende: saber quais órgãos
+# contratam consultoria sem licitar, de quem e por quanto, é inteligência que
+# não se compra. Deixar no arquivo de editais também não servia — 18 dos 38
+# registros de uma rodada eram inexigibilidade, e um arquivo assim lê como uma
+# fila de oportunidades perdidas quando nenhuma delas foi oportunidade.
+#
+# Então elas não são descartadas nem promovidas: são DESVIADAS. Saem em
+# "mercado", separadas dos candidatos, e a página as mostra numa aba própria —
+# sem veredito, sem prazo, sem score. Histórico informativo, não placar.
 INEXIGIVEL = ("inexigibilidade", "inexigivel", "inaplicabilidade")
+
+# O que segue para o mercado. Ficam DE FORA veredito, score, prazo e
+# encerramento: é o vocabulário de oportunidade, e nada aqui é oportunidade.
+CAMPOS_MERCADO = ("id", "orgao", "cnpj", "uf", "municipio", "modalidade",
+                  "objeto", "valor", "publicado_em", "link", "frentes")
 
 
 def disputa_provisoria(reg: dict) -> str:
@@ -277,6 +288,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     por_modalidade: dict[str, int] = {}
     candidatos: list[dict] = []
     vistos: set[str] = set()
+    mercado: list[dict] = []   # aderentes por inexigibilidade: informam, não disputam
 
     for r in resultados:
         nome = MODALIDADES[r["modalidade"]]
@@ -300,6 +312,13 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             if cand["id"] in vistos:      # a mesma compra pode voltar em duas páginas
                 continue
             vistos.add(cand["id"])
+            # Inexigibilidade não vira candidato: a lei já respondeu à pergunta
+            # que o radar existe para fazer. Desviada aqui, e não na triagem,
+            # porque um corte por modalidade não depende de leitura nenhuma — e
+            # porque um desvio em um lugar só é um desvio que dá para auditar.
+            if cand["disputa"] == "inexigivel":
+                mercado.append({k: cand[k] for k in CAMPOS_MERCADO if k in cand})
+                continue
             candidatos.append(cand)
 
     por_disputa: dict[str, int] = {}
@@ -310,8 +329,9 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     # inteligência de mercado, mas nunca disputa a atenção com o que ainda dá
     # para ganhar.
     ORDEM = {"aberto": 0, "indeterminado": 1, "relicita": 1,
-             "decidido": 2, "inexigivel": 2, "encerrado": 3, "cancelado": 4}
+             "decidido": 2, "encerrado": 3, "cancelado": 4}
     candidatos.sort(key=lambda c: (ORDEM.get(c["disputa"], 9), -c["score"], -(c["valor"] or 0)))
+    mercado.sort(key=lambda c: -(c.get("valor") or 0))
     fim = datetime.now(TZ)
 
     return {
@@ -325,6 +345,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "esperados": esperados,
             "modalidades_falhas": modalidades_falhas,
             "candidatos": len(candidatos),
+            "mercado": len(mercado),
             "por_disputa": por_disputa,
             "min_score": max(min_score, LIMIAR_CANDIDATO),
             "por_modalidade": por_modalidade,
@@ -333,6 +354,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "concluido_em": fim.isoformat(timespec="seconds"),
         },
         "candidatos": candidatos,
+        "mercado": mercado,
     }
 
 
@@ -370,6 +392,9 @@ def main() -> None:
     if c["modalidades_falhas"]:
         print(f"    modalidades que falharam inteiras: {c['modalidades_falhas']}")
     print(f"    {c['candidatos']} candidatos (score ≥ {c['min_score']}) → {a.saida}")
+    if c["mercado"]:
+        print(f"    {c['mercado']} contratação(ões) por inexigibilidade → aba Mercado "
+              f"(art. 74: competição inviável, nunca foi disputa)")
     if c["erros"]:
         print(f"    {len(c['erros'])} erro(s) de rede: {c['erros'][:3]}")
     pd = c["por_disputa"]

@@ -143,16 +143,13 @@ Cron em UTC: `0 5 * * *`
 > com a UFSC. Só `aberto`, `indeterminado` e `relicita` podem ser quentes; o
 > validador reprova o contrário.
 >
-> **`inexigivel` nunca é oportunidade, em nenhuma circunstância.** A modalidade
-> Inexigibilidade só existe, pelo art. 74 da Lei 14.133/2021, quando a
-> competição é *inviável*: fornecedor singular, notória especialização,
-> exclusividade. Não há janela para entrar — o fornecedor é premissa do
-> processo, não resultado dele. Um item "Em andamento" numa inexigibilidade
-> significa papelada em trânsito, não disputa aberta. Foi por ignorar isso que o
-> radar exibiu um processo de R$ 30,5 milhões da SEDUC-PA cujo próprio anexo se
-> chamava `Contrato_n__046.2026_-_FGV.pdf`. Nunca marque `quente` uma
-> inexigibilidade; ela pode ser `morno` apenas quando vale como referência de
-> mercado, e a justificativa precisa dizer isso com todas as letras.
+> **Inexigibilidade não chega até você.** `coleta_pncp.py` a desvia para
+> `mercado` antes de o candidato existir, porque o art. 74 da Lei 14.133 só a
+> autoriza quando a competição é *inviável* — fornecedor singular, notória
+> especialização, exclusividade — e o fornecedor é premissa do processo, não
+> resultado dele. Se uma aparecer na sua lista de triagem, veio da camada 2:
+> mande para `estado["mercado"]`, nunca para `estado["editais"]`. O validador
+> reprova a rodada que deixar uma no radar, com qualquer veredito.
 >
 > - `quente` — aderência direta ao portfólio, **`disputa` aberto ou
 >   indeterminado**, e porte compatível com o ticket mínimo (R$ 50 mil/mês; um
@@ -197,6 +194,10 @@ Cron em UTC: `0 5 * * *`
 >   campos foram movidos para o banco do artifact, com regra de permissão do
 >   servidor; a rotina reescreve a página, não o banco, e por isso não tem como
 >   alcançá-los. O validador reprova se voltarem.
+> - `estado["mercado"]` recebe o que `coleta_pncp.py` devolveu em `mercado`,
+>   acumulando com o que já estava lá (sem duplicar `id`). São as contratações
+>   por inexigibilidade: informam, não disputam. Sem `veredito`, sem `score`,
+>   sem prazo — e **nunca** em `estado["editais"]`.
 > - Edital `frio` com `score` abaixo de 30 não entra no radar: conte-o em
 >   `triados` e em `descartados`, e siga. Guardar vinte deles por dia enche o
 >   estado de coisa que ninguém relê.

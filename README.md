@@ -253,7 +253,6 @@ Cada edital carrega agora um campo `disputa`:
 | `aberto` | o prazo de proposta ainda corre — é oportunidade |
 | `encerrado` | havia prazo, e passou |
 | `decidido` | contratação direta sem janela: o fornecedor já estava escolhido |
-| `inexigivel` | modalidade Inexigibilidade: a lei declarou a competição inviável. Nunca foi disputa e nunca vai ser |
 | `relicita` | **deserto** (ninguém apareceu) ou **fracassado** (apareceram e foram desclassificados) — o órgão quis comprar e não conseguiu, e costuma voltar. É disputável, e das melhores horas de aparecer |
 | `cancelado` | anulado ou revogado |
 | `indeterminado` | modalidade com disputa mas sem prazo declarado — o órgão publicou incompleto; não descarte, confira |
@@ -283,15 +282,46 @@ especialização, exclusividade. Não existe janela para entrar, hoje ou daqui a
 uma semana: a decisão sobre quem executa é premissa do processo, não resultado
 dele. Uma inexigibilidade "em andamento" está apenas com a papelada em trânsito.
 
-Daí a regra, gravada em `coleta_pncp.py` e reforçada em `situacao.py`:
-**a modalidade decide antes do prazo.** Se a modalidade é Inexigibilidade, a
-disputa é `inexigivel`, sem consultar item, resultado ou data — e `inexigivel`
-não é disputável, então o edital nunca chega ao Radar nem à aba Prazos, e o
-validador reprova a rodada que o marque como `quente`.
+Daí a regra, gravada em `coleta_pncp.py`: **a modalidade decide antes do
+prazo.** Inexigibilidade nunca vira candidato, sem consultar item, resultado ou
+data.
 
-O tamanho do problema também foi medido: **18 dos 38 editais** do estado eram
-inexigibilidade. Um deles era o único `quente` do dia (SAAE Guanhães, R$ 180
-mil), e ele também não era oportunidade.
+O tamanho do problema foi medido: **18 dos 38 editais** do estado eram
+inexigibilidade. Um deles era o único `quente` do dia — SAAE Guanhães, R$ 180
+mil, assessoria em governança pública. Aberto o processo, o contrato já estava
+lá, com um escritório de advocacia.
+
+### O que fazer com elas foi a pergunta mais difícil
+
+Marcá-las no arquivo com um rótulo honesto ("sem disputa por lei") resolvia o
+falso positivo e criava outro problema, que só aparece olhando a tela: um
+arquivo em que 18 de 38 registros nunca foram disputáveis **lê como uma fila de
+oportunidades perdidas**. Não foram perdidas. Não havia o que perder.
+
+Jogar fora também não servia. O inciso III do art. 74 cobre exatamente os
+serviços que a Thutor vende, e saber quais órgãos contratam consultoria sem
+licitar, de quem e por quanto, é informação que não se compra.
+
+Então elas não são descartadas nem promovidas: são **desviadas**. `coleta_pncp.py`
+as separa em `mercado`, e a página as mostra numa aba própria — sem veredito,
+sem prazo, sem score, sem contagem de oportunidade. O vocabulário inteiro do
+radar fica de fora, porque é o vocabulário que dava a impressão errada. O que
+resta é a única pergunta que esses registros respondem bem: **quem contrata o
+que a Thutor vende, sem licitar, e por quanto.**
+
+Na primeira rodada: R$ 33 milhões, 18 órgãos, 11 fornecedores nomeados — FGV,
+Instituto Latino-Americano de Governança, Foccus, TGI, IBGC.
+
+O validador **reprova a rodada** que deixar uma inexigibilidade em
+`estado["editais"]`, com qualquer veredito. O corte é na coleta; a checagem é a
+rede embaixo dele.
+
+`situacao.py` roda sobre o mercado também, e ali a modalidade é omitida de
+propósito: a aba não pergunta se dá para disputar — já sabe que não —, pergunta
+de quem. Sem essa passagem a coluna "Contratado" ficava vazia justamente nas
+maiores, porque numa inexigibilidade o órgão muitas vezes não publica item
+nenhum. Sobra o anexo, e ele basta: foi assim que o processo de R$ 30,5 mi da
+SEDUC-PA passou a exibir `Contrato_n__046.2026_-_FGV.pdf`.
 
 `situacao.py` ganhou no mesmo movimento uma segunda checagem, para o caso
 inverso: quando o item **está** em disputa, ele lê `/arquivos` e procura anexo

@@ -420,6 +420,33 @@ para `WebSearch` e perde muito. A Pauta Thutor vive esse teto: a política de
 rede de lá libera só artifact, Pages e gerenciadores de pacote, e toda a coleta
 passa pelo buscador.
 
+**A rotina precisa nascer com o repositório autorizado.** Em 04/09/2026 a
+varredura das 02:00 rodou certo, publicou o artifact e falhou no último passo:
+
+```
+remote: access denied by the git proxy
+```
+
+A causa foi verificada com uma rotina-sonda descartável, não deduzida. Gatilhos
+criados pela ferramenta de MCP nascem com a configuração de sessão vazia —
+`sources: []`, `outcomes: []`, `allowed_push_branches: []` —, e a ferramenta não
+expõe parâmetro para preenchê-los. Uma rotina criada pela interface de Routines
+do claude.ai nasce com o repositório escolhido como fonte E como destino, que é
+como as rotinas da Pauta Thutor foram feitas:
+
+```json
+"sources":  [{"git_repository": {"url": ".../Busca-Editais-FG"}}],
+"outcomes": [{"git_repository": {"git_info": {
+               "repo": "wynb9t4n9w-png/Busca-Editais-FG",
+               "branches": ["claude/epic-goodall-he30lz"]}}}]
+```
+
+Consequência prática enquanto isso não estiver ajustado: **o artifact nunca fica
+atrasado** — a rotina o publica sem depender de git —, mas o espelho público
+fica, e a rotina de conferência das 06:00 também não consegue repará-lo, porque
+esbarra na mesma parede. O reparo sai de uma sessão que já tenha o repositório
+autorizado. É a mesma limitação que a Pauta Thutor documentou, e a mesma saída.
+
 **Credenciamento não é edital.** O Sebrae, o Senar e boa parte do Sistema S
 contratam consultoria por credenciamento contínuo. Um radar de editais não
 enxerga esse caminho, e ele pode ser o mais curto até o cliente.

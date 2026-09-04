@@ -232,7 +232,12 @@ Cron em UTC: `0 5 * * *`
 > da equipe ao funil. Também não passe `favicon` nem `title`. Se for recusada, responda começando com `FALHA:` e
 > diga o motivo exato.
 >
-> ### PASSO 8 — Atualizar o espelho público
+> ### PASSO 8 — (removido) A página pública não é da varredura
+> A varredura publica o artifact e para por aí. Quem gera `docs/index.html` e
+> empurra é a Rotina 2, que roda numa conversa com o repositório anexado.
+> Tentar aqui só produz `access denied by the git proxy` e alarme falso.
+>
+> ### PASSO 8 — o que era do espelho, mantido para referência
 > ```
 > git pull --rebase origin <branch padrão>
 > python3 tools/build_publico.py busca-editais-fg.html docs/index.html
@@ -282,14 +287,23 @@ Cron em UTC: `0 5 * * *`
 
 ---
 
-## Rotina 2 — Conferência do espelho, 06:00 (America/Sao_Paulo)
+## Rotina 2 — Espelho público, 06:00 (America/Sao_Paulo)
 
-Cron em UTC: `0 9 * * *`
+Cron em UTC: `0 9 * * *` · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
 
-Existe pelo mesmo motivo que a rotina gêmea da Pauta Thutor: em 29/08/2026 a
-coleta de lá publicou o artifact mas não fez o commit, e a página pública ficou
-uma edição atrás sem ninguém perceber. Uma varredura que falha em silêncio é
-indistinguível de uma que deu certo.
+Esta é a única peça do sistema que escreve no repositório, e por isso é a única
+que roda numa **conversa fixa**: ela foi criada com o repositório anexado como
+fonte e como destino, o que é o que dá permissão de push. A varredura das 02:00
+roda em sessão nova todo dia e não tem essa permissão — nem precisa ter.
+
+O prompt completo do procedimento vive dentro daquela conversa, estabelecido na
+primeira mensagem; o gatilho diário só a acorda com um lembrete curto. Se a
+conversa precisar ser recriada, o texto de referência é o desta seção.
+
+Existe também pelo motivo que a rotina gêmea da Pauta Thutor existe: em
+29/08/2026 a coleta de lá publicou o artifact mas não fez o commit, e a página
+pública ficou uma edição atrás sem ninguém perceber. Uma varredura que falha em
+silêncio é indistinguível de uma que deu certo.
 
 > Rede de segurança do **Busca Editais FG**. A varredura roda às 02:00; você roda
 > às 06:00. Sua função é garantir que a página pública não fique atrás do

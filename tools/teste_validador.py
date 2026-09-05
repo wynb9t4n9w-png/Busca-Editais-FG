@@ -156,11 +156,16 @@ def _quente_em_inexigibilidade(e):
     e["editais"][0]["disputa"] = "inexigivel"
     e["editais"][0]["modalidade"] = "Inexigibilidade"
 
+def _mercado_no_estado(e):
+    # A chave que guardava as inexigibilidades como histórico informativo.
+    # Removida em 06/09/2026: o radar captura oportunidade, não retrata quem é
+    # contratado sem licitar.
+    e["mercado"] = [{"id": "pncp:9-1-000009-2026", "orgao": "Y", "valor": 1}]
+
 def _morno_em_inexigibilidade(e):
     # Já foi o caso legítimo: inexigibilidade como referência de mercado, marcada
-    # no arquivo. Deixou de ser. Um arquivo com 18 de 38 registros que nunca
-    # foram disputáveis lê como uma fila de oportunidades perdidas — e não foram
-    # oportunidades. O rebaixamento para morno não basta: tem de sair do estado.
+    # no arquivo. Deixou de ser — e depois nem o arquivo sobrou. Rebaixar para
+    # morno não basta: tem de sair do estado.
     e["editais"][0]["disputa"] = "inexigivel"
     e["editais"][0]["modalidade"] = "Inexigibilidade"
     e["editais"][0]["veredito"] = "morno"
@@ -229,6 +234,7 @@ CASOS = [
     ("quente numa inexigibilidade", _quente_em_inexigibilidade, True, "INEXIGIBILIDADE"),
     ("morno numa inexigibilidade", _morno_em_inexigibilidade, True, "INEXIGIBILIDADE"),
     ("frio numa inexigibilidade", _frio_em_inexigibilidade, True, "INEXIGIBILIDADE"),
+    ("chave 'mercado' de volta no estado", _mercado_no_estado, True, "mercado"),
     ("campo disputa ausente", _sem_disputa, True, "disputa"),
     ("situação não conferida na fonte", _sem_conferencia, True, "conferida na fonte"),
     ("conferência não cobriu o radar", _conferencia_parcial, True, "conferidos na fonte"),

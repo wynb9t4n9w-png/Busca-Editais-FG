@@ -296,6 +296,17 @@ def valida(estado: dict) -> None:
                 "escrevê-lo aqui de novo reabre o risco de apagar análise da equipe."
             )
 
+    # "mercado" guardava as inexigibilidades como histórico informativo, numa
+    # aba própria. Foi removido em 06/09/2026 por decisão de escopo: toda
+    # inexigibilidade já nasce decidida (art. 74 exige fornecedor singular, então
+    # a escolha antecede o processo), e a ferramenta existe para capturar
+    # oportunidade real — não para retratar quem é contratado sem licitar. Um
+    # resíduo dessa chave ressuscitaria dados que a página já não sabe desenhar.
+    if "mercado" in estado:
+        falha("o estado voltou a carregar 'mercado'. As inexigibilidades saíram "
+              "do radar por inteiro: tools/coleta_pncp.py as descarta na coleta e "
+              "a página não tem mais a aba. Remova a chave.")
+
     rodadas = estado.get("rodadas") or []
     if not rodadas:
         falha("nenhuma rodada registrada no estado.")

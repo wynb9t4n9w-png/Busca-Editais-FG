@@ -162,7 +162,7 @@ def main() -> None:
     mornos = sum(1 for e in base["editais"] if e.get("veredito") == "morno")
     print(f"\nok  {a.saida} pronta para publicar")
     print(f"    rodada {dia} · {quentes} quentes · {mornos} mornos · "
-          f"{len(base['editais'])} no radar · {len(base.get('mercado') or [])} no mercado")
+          f"{len(base['editais'])} no radar")
 
 
 if __name__ == "__main__":

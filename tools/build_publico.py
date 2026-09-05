@@ -48,15 +48,6 @@ CAMPOS_PUBLICOS = (
     "disputa", "vencedor", "situacao_item",
 )
 
-# A aba Mercado carrega contratações por inexigibilidade, e elas passam pela
-# MESMA disciplina: lista de permissão própria, e não um `dict` copiado inteiro.
-# Um campo que a coleta acrescente amanhã a esses registros fica de fora por
-# padrão — a alternativa seria confiar que ninguém vai colocar nada sensível
-# num lugar que hoje parece inofensivo.
-CAMPOS_MERCADO_PUBLICOS = (
-    "id", "orgao", "uf", "municipio", "modalidade", "objeto", "valor",
-    "publicado_em", "link", "frentes", "vencedor", "documento_fecho",
-)
 
 RESET = (
     "<meta charset=utf8>"
@@ -69,7 +60,7 @@ RESET = (
 )
 
 DADOS_RE = re.compile(r"(/\*DADOS\*/)(.*?)(/\*FIM\*/)", re.S)
-NAV_RE = re.compile(r'\["radar","prazos","arquivo","mercado","cobertura","acompanhamento"\]')
+NAV_RE = re.compile(r'\["radar","prazos","arquivo","cobertura","acompanhamento"\]')
 TAB_RE = re.compile(r"[ \t]*<button[^>]*id=\"tab-acompanhamento\"[^>]*>.*?</button>\s*\n?", re.S)
 # O painel tem de sair junto com o botão. Sozinho ele é inerte — irPara() já
 # não o abre — mas o aria-labelledby continua apontando para um id que deixou
@@ -101,10 +92,6 @@ def sanitiza(estado: dict) -> dict:
     limpo["editais"] = [
         {k: e[k] for k in CAMPOS_PUBLICOS if k in e}
         for e in estado.get("editais", [])
-    ]
-    limpo["mercado"] = [
-        {k: e[k] for k in CAMPOS_MERCADO_PUBLICOS if k in e}
-        for e in estado.get("mercado", [])
     ]
     return limpo
 
@@ -138,7 +125,7 @@ def build(origem: Path, destino: Path) -> dict:
             "não existe — revise o script."
         )
 
-    corpo, n = NAV_RE.subn('["radar","prazos","arquivo","mercado","cobertura"]', corpo)
+    corpo, n = NAV_RE.subn('["radar","prazos","arquivo","cobertura"]', corpo)
     if n == 0:
         raise SystemExit(
             "FALHA: a lista de abas de irPara() não foi encontrada. Sem esse ajuste, "

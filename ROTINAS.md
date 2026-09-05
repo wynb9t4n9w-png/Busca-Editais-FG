@@ -108,6 +108,15 @@ outro, e cada uma deixa arquivo no disco.
 > Desenvolvimento de Líderes; Eficiência e Gestão (design organizacional, span of
 > control, workforce planning); Governança.
 >
+> **Inexigibilidade não chega até você**, e não deve chegar:
+> `tools/coleta_pncp.py` a descarta antes de o candidato existir. O art. 74 da
+> Lei 14.133 só a autoriza quando a competição é *inviável* — fornecedor
+> singular, notória especialização, exclusividade —, então a escolha antecede o
+> processo e nunca há janela para entrar, com vencedor publicado ou não. Se uma
+> aparecer na sua lista, veio da camada 2: deixe fora do radar e cite no
+> relatório. O validador reprova a rodada que deixar uma em `editais`, com
+> qualquer veredito, e reprova também a chave `mercado` de volta no estado.
+>
 > Regras duras:
 > 1. **NUNCA invente** edital, órgão, valor, prazo ou link.
 > 2. Todo quente e morno precisa de `justificativa` — uma ou duas frases para
@@ -161,8 +170,8 @@ outro, e cada uma deixa arquivo no disco.
 > Em português, no máximo 10 linhas: contratações do PNCP e se a conta fechou;
 > fontes externas visitadas/abertas e qual rendeu; candidatos, triados,
 > conferidos; quentes e mornos, com objeto e valor de cada quente; quantos
-> `relicita`; quantos fecham prazo em 7 dias; quantas entraram no Mercado e quem
-> foram os maiores contratados; duração; e o link do artifact.
+> `relicita`; quantos fecham prazo em 7 dias; quantas inexigibilidades foram
+> descartadas; duração; e o link do artifact.
 >
 > Feche com DUAS LINHAS do PASSO 8: a proposta mais forte de termo ou veto, e
 > qualquer órgão que voltou a comprar.

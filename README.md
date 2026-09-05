@@ -291,72 +291,36 @@ inexigibilidade. Um deles era o único `quente` do dia — SAAE Guanhães, R$ 18
 mil, assessoria em governança pública. Aberto o processo, o contrato já estava
 lá, com um escritório de advocacia.
 
-### O que fazer com elas foi a pergunta mais difícil
+### O que fazer com elas: três respostas, e a definitiva
 
-Marcá-las no arquivo com um rótulo honesto ("sem disputa por lei") resolvia o
-falso positivo e criava outro problema, que só aparece olhando a tela: um
-arquivo em que 18 de 38 registros nunca foram disputáveis **lê como uma fila de
-oportunidades perdidas**. Não foram perdidas. Não havia o que perder.
+A primeira foi mantê-las no radar com um rótulo honesto — "sem disputa por lei".
+Resolvia o falso positivo e criava outro problema, que só aparece olhando a tela:
+um arquivo em que 18 de 38 registros nunca foram disputáveis **lê como uma fila
+de oportunidades perdidas**. Não foram perdidas; não havia o que perder.
 
-Jogar fora também não servia. O inciso III do art. 74 cobre exatamente os
-serviços que a Thutor vende, e saber quais órgãos contratam consultoria sem
-licitar, de quem e por quanto, é informação que não se compra.
+A segunda foi separá-las numa aba própria, **Mercado**, sem veredito, sem prazo e
+sem score — o preço que o setor público paga pelo que a Thutor vende, e o nome de
+quem é chamado sem licitação. R$ 33 milhões, 18 órgãos, 12 fornecedores. Era boa
+informação.
 
-Então elas não são descartadas nem promovidas: são **desviadas**. `coleta_pncp.py`
-as separa em `mercado`, e a página as mostra numa aba própria — sem veredito,
-sem prazo, sem score, sem contagem de oportunidade. O vocabulário inteiro do
-radar fica de fora, porque é o vocabulário que dava a impressão errada. O que
-resta é a única pergunta que esses registros respondem bem: **quem contrata o
-que a Thutor vende, sem licitar, e por quanto.**
+A terceira, de 06/09/2026, foi **removê-las por inteiro**, e é uma decisão de
+escopo, não de qualidade do dado: *o intuito desta ferramenta é a captura de
+oportunidades reais, não a visão de quem está sendo contratado por
+inexigibilidade.* Um radar que também guarda o que nunca foi disputável dilui a
+única pergunta que ele existe para responder, e cada aba a mais é uma aba que
+alguém abre de manhã sem precisar.
 
-Na primeira rodada: R$ 33 milhões, 18 órgãos, 11 fornecedores nomeados — FGV,
-Instituto Latino-Americano de Governança, Foccus, TGI, IBGC.
+Vale registrar a nuance, porque ela reaparece: não é verdade que toda
+inexigibilidade só apareça depois de fechada — das 18 medidas, 11 tinham vencedor
+publicado, 1 trazia o contrato anexado e 5 não tinham nada ainda. O que é verdade,
+e é o argumento mais forte, é que **todas já nascem decididas**: o art. 74 exige
+fornecedor singular, então a escolha antecede o processo, com vencedor divulgado
+ou não. Nunca há janela para entrar.
 
-O validador **reprova a rodada** que deixar uma inexigibilidade em
-`estado["editais"]`, com qualquer veredito. O corte é na coleta; a checagem é a
-rede embaixo dele.
-
-`situacao.py` roda sobre o mercado também, e ali a modalidade é omitida de
-propósito: a aba não pergunta se dá para disputar — já sabe que não —, pergunta
-de quem. Sem essa passagem a coluna "Contratado" ficava vazia justamente nas
-maiores, porque numa inexigibilidade o órgão muitas vezes não publica item
-nenhum. Sobra o anexo, e ele basta: foi assim que o processo de R$ 30,5 mi da
-SEDUC-PA passou a exibir `Contrato_n__046.2026_-_FGV.pdf`.
-
-`situacao.py` ganhou no mesmo movimento uma segunda checagem, para o caso
-inverso: quando o item **está** em disputa, ele lê `/arquivos` e procura anexo
-cujo nome denuncie o fecho (contrato, ratificação, homologação, adjudicação,
-empenho, ata de registro). Foi esse anexo que denunciou a FGV, e é ele que passa
-a denunciar os próximos.
-
-### O retrovisor vale dinheiro
-
-Descartar as contratações já decididas seria trocar um erro por outro. Elas
-dizem quais órgãos compram o que a Thutor vende, quanto pagam e quem está
-ganhando — informação que uma consultoria não consegue comprar. A diferença
-entre lixo e inteligência aqui é só o rótulo.
-
-```bash
-python3 tools/contratos.py --do-estado <estado.html>
-python3 tools/contratos.py <cnpj> <AAAAMMDD> "trecho do objeto"
-```
-
-```bash
-python3 tools/situacao.py --do-estado <estado.html>
-python3 tools/situacao.py <cnpj> <ano> <sequencial>
-```
-
-`situacao.py` é o caminho principal e o mais barato em incerteza: o resultado do
-item traz o vencedor com o valor homologado, direto da fonte. `contratos.py`
-sobrou como reserva, para os órgãos que publicam o contrato mas não os itens —
-ele cruza os objetos palavra a palavra, o que é engenhoso e aproximado.
-
-A diferença entre os dois apareceu na primeira medição: a comparação de texto
-identificou **3 fornecedores em 13**; a leitura dos itens identificou **12 em
-12**. Uma é dedução esperta, a outra é o dado. Foi assim que o contrato do
-CRECI/SC saiu completo — **UFSC, R$ 1,5 milhão** — e junto com ele o IBGC na
-VALEC, o SENAT em Uberlândia, e uma fila de fundações universitárias que é, por
-si só, o retrato de quem concorre com a Thutor neste mercado.
+Hoje `tools/coleta_pncp.py` as descarta antes de o candidato existir, e o descarte
+é **contado** na cobertura da rodada — o que some sem número some para sempre. O
+validador recusa uma inexigibilidade em `editais` com qualquer veredito, e recusa
+também a chave `mercado` de volta no estado.
 
 ### A rodada que não aconteceu
 

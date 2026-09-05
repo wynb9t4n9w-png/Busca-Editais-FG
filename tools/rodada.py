@@ -63,10 +63,16 @@ RAIZ = Path(__file__).resolve().parent.parent
 # Tetos do estado. Existem para a página não virar um arquivo morto de 5 MB que
 # o navegador leva dez segundos para desenhar.
 MAX_EDITAIS = 400
-MAX_MERCADO = 300
 MAX_RODADAS = 30
 SCORE_MINIMO_FRIO = 30      # frio abaixo disto não entra: conta e some
 DIAS_PARA_APOSENTAR = 90    # frio com prazo vencido há mais que isso sai primeiro
+
+# Formato do checkpoint. Suba quando a forma do que as fases gravam mudar: um
+# checkpoint do formato velho retomado por código novo estoura num KeyError no
+# meio da rodada, que é o pior lugar para descobrir isso. Subiu para 2 quando a
+# coleta deixou de devolver "mercado" e passou a devolver
+# "inexigiveis_descartados".
+VERSAO_CHECKPOINT = 2
 
 
 # ───────────────────────── checkpoint ─────────────────────────
@@ -92,15 +98,17 @@ class Trabalho:
             d = json.loads(p.read_text(encoding="utf8"))
         except json.JSONDecodeError:
             return None
-        # Checkpoint de ontem não serve para a rodada de hoje.
-        if d.get("_dia") != self.dia:
+        # Checkpoint de ontem não serve para a rodada de hoje; de outro formato,
+        # tampouco — e esse é o que quebra em silêncio.
+        if d.get("_dia") != self.dia or d.get("_versao") != VERSAO_CHECKPOINT:
             return None
         print(f"    (retomado do checkpoint: {p.name})", flush=True)
         return d.get("_dado")
 
     def guarda(self, fase: str, dado):
         self._p(fase).write_text(
-            json.dumps({"_dia": self.dia, "_dado": dado}, ensure_ascii=False, indent=1),
+            json.dumps({"_dia": self.dia, "_versao": VERSAO_CHECKPOINT,
+                        "_dado": dado}, ensure_ascii=False, indent=1),
             encoding="utf8")
         return dado
 
@@ -132,7 +140,8 @@ def fase_coleta(t: Trabalho) -> dict:
     r = coleta(ontem, hoje, 0)
     c = r["cobertura"]
     print(f"    {c['brutos']:,} de {c['esperados']:,} contratações · "
-          f"{c['candidatos']} candidatos · {c['mercado']} para o Mercado", flush=True)
+          f"{c['candidatos']} candidatos · "
+          f"{c['inexigiveis_descartados']} inexigibilidade(s) fora", flush=True)
     if c["paginas_perdidas"] or c["brutos"] < c["esperados"]:
         raise SystemExit(
             f"FALHA: varredura incompleta ({c['paginas_perdidas']} página(s) "
@@ -142,10 +151,9 @@ def fase_coleta(t: Trabalho) -> dict:
     return t.guarda("coleta", r)
 
 
-def fase_situacao(t: Trabalho, alvos: list[dict], mercado: list[dict]) -> dict:
+def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
     """A pergunta autoritativa, e a única que custa rede por edital."""
-    print(f"[3/4] conferindo {len(alvos)} editais e {len(mercado)} do mercado "
-          "na fonte", flush=True)
+    print(f"[3/4] conferindo {len(alvos)} editais na fonte", flush=True)
     g = t.guardado("situacao")
     if g:
         return g
@@ -157,11 +165,6 @@ def fase_situacao(t: Trabalho, alvos: list[dict], mercado: list[dict]) -> dict:
                             if k in r}
         if i % 10 == 0 or i == len(alvos):
             print(f"    editais {i}/{len(alvos)}", flush=True)
-        time.sleep(situacao.PAUSA_ENTRE)
-    for i, e in enumerate(mercado, 1):
-        achados[e["id"]] = situacao.confere_mercado(e)
-        if i % 10 == 0 or i == len(mercado):
-            print(f"    mercado {i}/{len(mercado)}", flush=True)
         time.sleep(situacao.PAUSA_ENTRE)
     return t.guarda("situacao", achados)
 
@@ -184,7 +187,6 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     em código porque instrução se esquece e código não.
     """
     editais = {e["id"]: e for e in (estado.get("editais") or [])}
-    mercado = {m["id"]: m for m in (estado.get("mercado") or [])}
 
     # Campos que a coleta atualiza num edital que já existe. `veredito` e
     # `justificativa` NÃO estão aqui: são do agente, e sobrevivem à rodada
@@ -203,13 +205,9 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
             editais[c["id"]] = c
             novos.append(c)
 
-    for m in r["mercado"]:
-        if m["id"] not in mercado:
-            mercado[m["id"]] = dict(m, visto_em=dia)
-
     # O fato, por cima do palpite.
     for eid, a in achados.items():
-        alvo = editais.get(eid) or mercado.get(eid)
+        alvo = editais.get(eid)
         if not alvo:
             continue
         for k in ("disputa", "vencedor", "documento_fecho"):
@@ -230,11 +228,12 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
         lista = lista[len(lista) - MAX_EDITAIS:]
 
     lista.sort(key=lambda e: str(e.get("publicado_em") or ""), reverse=True)
-    merc = sorted(mercado.values(), key=lambda m: -(m.get("valor") or 0))[:MAX_MERCADO]
 
     novo = dict(estado)
     novo["editais"] = lista
-    novo["mercado"] = merc
+    # Estado de antes da decisão de 06/09/2026 ainda carrega "mercado". Some
+    # aqui, uma vez, sem exigir purga manual de ninguém.
+    novo.pop("mercado", None)
     novo["atualizado_em"] = datetime.now(TZ).isoformat(timespec="seconds")
     return novo, novos
 
@@ -265,9 +264,7 @@ def main() -> None:
                if e["id"] not in ids_hoje
                and e.get("disputa") in ("aberto", "indeterminado", "relicita")]
     alvos = r["candidatos"] + antigos
-    merc_novo = [m for m in r["mercado"]
-                 if m["id"] not in {x["id"] for x in (estado.get("mercado") or [])}]
-    achados = fase_situacao(t, alvos, merc_novo)
+    achados = fase_situacao(t, alvos)
 
     print("[4/4] fundindo com o estado anterior", flush=True)
     base, novos = funde(estado, r, achados, dia)
@@ -276,16 +273,28 @@ def main() -> None:
     base["_rodada"] = {
         "data": dia,
         "cobertura": {
-            "iniciado_em": inicio.isoformat(timespec="seconds"),
+            # O início é o da COLETA, não o desta invocação. Numa rodada retomada
+            # do checkpoint o relógio de parede marca segundos, e o validador
+            # reprova por "duração curta demais" um trabalho que de fato levou os
+            # quatro minutos — só que na tentativa anterior. O carimbo da coleta
+            # atravessa o checkpoint junto com os dados e conta a verdade.
+            "iniciado_em": c.get("iniciado_em") or inicio.isoformat(timespec="seconds"),
             "concluido_em": datetime.now(TZ).isoformat(timespec="seconds"),
             "rede_direta": True,
             "pncp": {k: c[k] for k in ("brutos", "esperados", "paginas",
                                        "paginas_perdidas", "candidatos",
                                        "modalidades_falhas", "erros")},
             "externas": {"tentadas": 0, "abertas": 0, "candidatos": 0, "falhas": []},
-            "triados": 0, "conferidos": len(achados),
+            # Quantos editais do radar têm situação conferida na fonte — não
+            # quantos ESTA rodada conferiu. Um edital já decidido não precisa de
+            # reconferência, e continua conferido: a prova é o `situacao_item`
+            # que ele carrega. Contar só o desta rodada reprovava a rodada por um
+            # trabalho que já tinha sido feito.
+            "triados": 0,
+            "conferidos": sum(1 for e in base["editais"]
+                              if (e.get("situacao_item") or "").strip()),
             "novos": len(novos), "descartados": 0,
-            "mercado": len(merc_novo),
+            "inexigiveis_descartados": c["inexigiveis_descartados"],
         },
     }
 
@@ -307,7 +316,8 @@ def main() -> None:
     (a.trabalho / "triagem.json").write_text(
         json.dumps(folha, ensure_ascii=False, indent=1), encoding="utf8")
 
-    print(f"\nok  {len(base['editais'])} editais · {len(base['mercado'])} no mercado")
+    print(f"\nok  {len(base['editais'])} editais no radar · "
+          f"{c['inexigiveis_descartados']} inexigibilidade(s) descartada(s)")
     print(f"    {len(folha)} para triar → {a.trabalho}/triagem.json")
     print(f"    estado fundido → {a.trabalho}/base.json")
     print(f"\nAgora: leia triagem.json, decida veredito e justificativa de cada um,\n"

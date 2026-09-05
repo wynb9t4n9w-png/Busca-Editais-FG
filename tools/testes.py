@@ -43,6 +43,8 @@ SUITE = [
      "o portão que impede publicar uma rodada que não aconteceu"),
     ("coleta", ["tools/teste_coleta.py"], True,
      "o contrato com a API do PNCP — o teste contra a falha silenciosa"),
+    ("deduplicação", ["tools/teste_dedup.py"], False,
+     "a mesma disputa contada duas vezes — e, pior, duas contadas como uma"),
     ("vigia", ["tools/teste_vigia.py"], False,
      "o portão que pergunta se a rodada ACONTECEU — os outros só olham o dado"),
     ("aprendizado", ["tools/teste_aprende.py"], False,

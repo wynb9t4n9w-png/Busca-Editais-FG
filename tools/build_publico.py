@@ -46,6 +46,10 @@ CAMPOS_PUBLICOS = (
     # Fatos públicos de contratação: quem contratou, por quanto, quando. Saem
     # do PNCP e voltar a escondê-los só empobreceria o espelho.
     "disputa", "vencedor", "situacao_item",
+    # A outra publicação da mesma disputa. Vai para o espelho porque quem lê
+    # precisa saber que é um certame só — o risco que ele evita (proposta em
+    # duplicidade) existe igual para quem abre a página pública.
+    "tambem_publicado_como",
 )
 
 
@@ -88,7 +92,11 @@ def sanitiza(estado: dict) -> dict:
     # Lista de permissão, nunca de proibição: um campo novo e sensível que
     # alguém acrescente ao estado amanhã fica de fora por padrão, em vez de
     # vazar até alguém lembrar de proibi-lo.
-    limpo = {k: v for k, v in estado.items() if k not in ("auth",)}
+    # "memoria" é o caderno do filtro: todo edital que já passou pelo radar,
+    # inclusive os que fecharam. Serve a tools/aprende.py e a mais ninguém. Não
+    # vai para a página pública — nem por tamanho, nem por ser exatamente o
+    # retrovisor que o dono do radar pediu para tirar da tela.
+    limpo = {k: v for k, v in estado.items() if k not in ("auth", "memoria")}
     limpo["editais"] = [
         {k: e[k] for k in CAMPOS_PUBLICOS if k in e}
         for e in estado.get("editais", [])

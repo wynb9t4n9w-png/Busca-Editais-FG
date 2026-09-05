@@ -91,7 +91,11 @@ def lift(dentro: int, n_dentro: int, fora: int, n_fora: int) -> float:
 
 
 def relatorio(estado: dict, minimo: int) -> None:
-    editais = estado.get("editais") or []
+    # A memória, não o radar. O radar guarda só o que ainda dá para disputar, e
+    # aprender só com ele seria comparar os últimos três dias contra os últimos
+    # três dias para sempre — um órgão que comprou em agosto e volta em novembro
+    # jamais apareceria como recorrente, que é a prospecção mais valiosa daqui.
+    editais = estado.get("memoria") or estado.get("editais") or []
     rodadas = estado.get("rodadas") or []
     if not editais:
         print("Nenhum edital no radar ainda. Volte depois de algumas rodadas.")

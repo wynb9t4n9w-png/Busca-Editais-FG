@@ -9,6 +9,85 @@ de onde vieram a arquitetura de duas páginas, o portão de validação e a
 disciplina de nunca deixar uma execução falhar em silêncio. O que mudou, mudou
 por um motivo — e cada motivo está registrado abaixo.
 
+## Auditoria de 06/09/2026 — seis achados e o que foi feito
+
+Depois de quatro dias de regras acumuladas, uma auditoria com números em vez de
+impressões. Cada achado tem a medição que o produziu.
+
+### 1. O aprendizado tinha perdido a memória — regressão nossa
+
+A regra "só fica o que dá para disputar" está certa para a tela e estava errada
+para o mecanismo. `tools/aprende.py` descobre vocabulário e órgãos recorrentes
+comparando o que interessou com o que não interessou; com o edital saindo do
+estado no dia em que o certame fecha, ele passou a comparar **três dias contra
+três dias, para sempre**. Um órgão que compra em agosto e volta em novembro
+nunca seria reconhecido — e essa é a prospecção mais valiosa que este projeto
+pode produzir.
+
+**Feito:** `estado["memoria"]` — o caderno do filtro. Todo edital que já passou
+pelo radar fica registrado ali, inclusive depois de fechar. Ela **não aparece na
+página**, não tem veredito exibido, não é espelhada no GitHub Pages e não pode
+ser confundida com oportunidade: só `aprende.py` a lê. Não é o arquivo que foi
+removido; é a diferença entre o que o radar mostra e o que o sistema lembra.
+
+### 2. A mesma disputa contada duas vezes — 8% do radar
+
+Medido: 6 dos 74 editais eram três pares. Osasco, Caçu e o SAAE de Lagoa da
+Prata, cada um publicado sob dois sequenciais consecutivos, minutos de
+diferença, mesmo objeto e mesmo valor. O PNCP aceita — são registros distintos
+para o órgão. Para o radar são uma disputa só, e contá-las duas vezes custa duas
+vezes: o agente tria o mesmo objeto de novo, e quem for propor pode **mandar
+proposta em duplicidade** achando que são certames diferentes.
+
+**Feito:** `dedup()` em `tools/rodada.py`, por órgão + valor + as primeiras
+palavras do objeto. Sobrevive a publicação mais informativa, e o cartão avisa
+que existe outro registro da mesma disputa.
+
+### 3. Triagem cega em objeto truncado
+
+Mediana de 400 caracteres, mínimo de 78. E as duas varreduras devolvem o **mesmo
+edital com comprimentos diferentes** — foi assim que o SAAE de Lagoa da Prata
+valia 52 pelo texto curto e 78 pelo completo.
+
+**Feito:** na deduplicação, fica sempre o objeto mais longo. Decidir pelo resumo
+é decidir sem ler.
+
+### 4. Urgência afogada na lista
+
+Quatro dos treze quentes e mornos encerravam em três dias, exibidos misturados
+aos que fecham em quarenta. O contador "fecham em 7 dias" não ajudava: somava
+frios, e um frio urgente é só um frio.
+
+**Feito:** faixa no topo do Radar com o que fecha em até três dias, e o contador
+passou a somar só quente e morno.
+
+### 5. O score filtra, mas não ordena — e isso é por design
+
+Medido: frios com mediana 43 e máximo 75; mornos com mediana 47. A sobreposição
+é quase total. Seria tentador "melhorar o score" para separar melhor.
+
+**Não foi feito, de propósito.** O score responde "isto fala do nosso tema?", e
+para isso ele é bom: de 5.412 contratações de um dia, 5.368 pontuam zero e os
+zerados de maior valor são obra, evento e veterinária. Quem responde "isto vale
+uma proposta?" é a triagem, que lê o objeto inteiro e às vezes o edital. Fazer o
+score decidir aderência comercial seria pedir a um filtro de palavras que
+substitua julgamento — e o dia em que ele "acertar" sozinho é o dia em que
+ninguém mais confere. Fica registrado para não ser proposto como melhoria.
+
+### 6. O que sobrou como risco conhecido
+
+- **O funil comercial ainda perde histórico.** Um edital marcado "proposta
+  enviada" desaparece quando o certame fecha, e com ele o registro de que
+  disputamos. Hoje o funil está vazio e nada se perdeu. A correção é preservar o
+  que tem marcação, e ela só faz sentido quando a equipe começar a usar.
+- **Três portais do Sistema S continuam fechados** (Senac DN, Sesc DN,
+  Senac-ES): 403 e Cloudflare mesmo com User-Agent de navegador. Precisariam de
+  navegador de verdade, e o rendimento medido no que já abriu não sustenta esse
+  custo.
+- **O Sebrae entra pelo credenciamento, não pelo radar.** Está em
+  `tools/camada2.py` e no que se lê acima: seis licitações abertas no Sistema
+  inteiro, nenhuma aderente, porque consultoria vai toda para o SGF.
+
 ## O que este projeto não é
 
 Não é um clipping. A Pauta Thutor procura notícia com `WebSearch`, e para

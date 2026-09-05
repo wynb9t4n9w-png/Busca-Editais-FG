@@ -46,9 +46,11 @@ Saída: <trabalho>/base.json com o estado fundido (sem vereditos) e
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -65,6 +67,24 @@ RAIZ = Path(__file__).resolve().parent.parent
 # o navegador leva dez segundos para desenhar.
 MAX_EDITAIS = 400
 MAX_RODADAS = 30
+
+# A memória do aprendizado, e por que ela precisa existir.
+#
+# Quando o radar passou a guardar só o que ainda dá para disputar, o edital
+# some no dia em que o certame fecha. Isso é certo para a TELA e errado para o
+# MECANISMO: tools/aprende.py descobre vocabulário e órgãos recorrentes
+# comparando o que interessou com o que não interessou, e sem histórico ele
+# compara três dias contra três dias para sempre. Um órgão que comprou em
+# agosto e volta em novembro nunca seria reconhecido, que é exatamente a
+# prospecção mais valiosa que este projeto pode produzir.
+#
+# A memória NÃO é o arquivo que foi removido: ela não aparece na página, não
+# tem veredito exibido, não conta como oportunidade e não pode ser confundida
+# com uma. É o caderno do filtro, e só o aprendizado a lê.
+MAX_MEMORIA = 3000
+CAMPOS_MEMORIA = ("id", "orgao", "cnpj", "uf", "municipio", "modalidade",
+                  "objeto", "valor", "publicado_em", "encerramento",
+                  "veredito", "score", "frentes", "vencedor")
 SCORE_MINIMO_FRIO = 30      # frio abaixo disto não entra: conta e some
 
 # O radar guarda só o que ainda dá para pescar. Decidido, encerrado e cancelado
@@ -236,6 +256,90 @@ def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
 
 # ───────────────────────── fusão ─────────────────────────
 
+# Duas publicações da mesma disputa não têm o mesmo texto.
+#
+# Primeira tentativa: comparar as primeiras palavras do objeto. Falhou na tela,
+# e a tela mostrou por quê — o SAAE de Lagoa da Prata aparecia duas vezes na
+# faixa de urgência, porque uma publicação começa em "CONTRATAÇÃO DE EMPRESA
+# ESPECIALIZADA NA PRESTAÇÃO DE..." e a outra em "Prestação de Serviços
+# Técnicos...". Mesmo edital, aberturas diferentes.
+#
+# O que separa de verdade, medido sobre o radar de 06/09/2026:
+#
+#   SAAE Lagoa da Prata   mesmo valor, cobertura de palavras 0,91  -> é o mesmo
+#   Caçu                  mesmo valor, cobertura 1,00              -> é o mesmo
+#   Campo Belo            cobertura 1,00, valores 0 e 25.400       -> DOIS lotes
+#   Comando da Marinha    cobertura 0,88, R$ 588 mil e R$ 4,17 mi  -> DOIS cursos
+#
+# O valor é o que impede a fusão errada, e errar aqui é caro na direção que
+# importa: unir duas disputas distintas esconde uma oportunidade, e oportunidade
+# escondida não reclama. Por isso a exigência é dupla — mesmo valor E cobertura
+# alta — e não uma ou outra.
+COBERTURA_MESMA_DISPUTA = 0.85
+
+
+def _palavras(s: str) -> set:
+    s = unicodedata.normalize("NFKD", (s or "").lower()).encode("ascii", "ignore").decode()
+    return set(re.findall(r"[a-z]{4,}", s))
+
+
+def _mesma_disputa(a: dict, b: dict) -> bool:
+    if a.get("cnpj") != b.get("cnpj"):
+        return False
+    if round(a.get("valor") or 0, 2) != round(b.get("valor") or 0, 2):
+        return False
+    pa, pb = _palavras(a.get("objeto")), _palavras(b.get("objeto"))
+    if not pa or not pb:
+        return False
+    # Cobertura do MENOR, não Jaccard: uma publicação traz o objeto completo
+    # (2.859 caracteres) e a outra o resumo (383). O Jaccard desse par é 0,17 e
+    # esconderia a igualdade; a cobertura do menor é 0,91 e a revela.
+    return len(pa & pb) / min(len(pa), len(pb)) >= COBERTURA_MESMA_DISPUTA
+
+
+def _melhor(a: dict, b: dict) -> dict:
+    """
+    Entre duas publicações da mesma disputa, fica a mais informativa.
+
+    "Mais informativa" é a de objeto mais longo, e isso não é estética: o mesmo
+    edital do SAAE de Lagoa da Prata pontuava 52 com o objeto curto e 78 com o
+    completo, porque metade dos termos de núcleo só existe no texto inteiro.
+    Triar pelo resumo é decidir sem ler.
+    """
+    ma, mb = len(a.get("objeto") or ""), len(b.get("objeto") or "")
+    vencedor, perdedor = (a, b) if ma >= mb else (b, a)
+    # O veredito e a nota do agente sobrevivem, venham de qual publicação vier.
+    for campo in ("veredito", "justificativa", "visto_em"):
+        if not vencedor.get(campo) and perdedor.get(campo):
+            vencedor[campo] = perdedor[campo]
+    outros = vencedor.setdefault("tambem_publicado_como", [])
+    for x in [perdedor.get("link")] + (perdedor.get("tambem_publicado_como") or []):
+        if x and x != vencedor.get("link") and x not in outros:
+            outros.append(x)
+    return vencedor
+
+
+def dedup(editais: list[dict]) -> tuple[list[dict], int]:
+    from collections import defaultdict
+    baldes: dict[tuple, list[dict]] = defaultdict(list)
+    for e in editais:
+        baldes[(e.get("cnpj"), round(e.get("valor") or 0, 2))].append(e)
+
+    saida, unidas = [], 0
+    for grupo in baldes.values():
+        restantes: list[dict] = []
+        for e in grupo:
+            for j, ja in enumerate(restantes):
+                if _mesma_disputa(ja, e):
+                    restantes[j] = _melhor(ja, e)
+                    unidas += 1
+                    break
+            else:
+                restantes.append(e)
+        saida.extend(restantes)
+    return saida, unidas
+
+
 def dias_desde(iso) -> float | None:
     if not iso:
         return None
@@ -293,7 +397,14 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
         d = dias_desde(e.get("encerramento"))
         return d is None or d <= 0          # sem prazo declarado, ou ainda por vir
 
-    lista = list(editais.values())
+    lista, duplicatas = dedup(list(editais.values()))
+
+    # Antes de qualquer corte, o que passou por aqui vai para a memória. É o
+    # último ponto em que os editais que fecharam hoje ainda existem.
+    memoria = {m["id"]: m for m in (estado.get("memoria") or [])}
+    for e in lista:
+        memoria[e["id"]] = {k: e[k] for k in CAMPOS_MEMORIA if k in e}
+
     antes = len(lista)
     lista = [e for e in lista if pescavel(e)]
     fechados = antes - len(lista)
@@ -305,11 +416,14 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
 
     novo = dict(estado)
     novo["editais"] = lista
+    novo["memoria"] = sorted(memoria.values(),
+                             key=lambda m: str(m.get("publicado_em") or ""),
+                             reverse=True)[:MAX_MEMORIA]
     # Estado de antes da decisão de 06/09/2026 ainda carrega "mercado". Some
     # aqui, uma vez, sem exigir purga manual de ninguém.
     novo.pop("mercado", None)
     novo["atualizado_em"] = datetime.now(TZ).isoformat(timespec="seconds")
-    return novo, novos, fechados
+    return novo, novos, fechados, duplicatas
 
 
 def main() -> None:
@@ -358,7 +472,7 @@ def main() -> None:
     achados = fase_situacao(t, alvos)
 
     print("[6/6] fundindo com o estado anterior", flush=True)
-    base, novos, fechados = funde(estado, r, achados, dia)
+    base, novos, fechados, duplicatas = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
     base["_rodada"] = {
@@ -391,6 +505,7 @@ def main() -> None:
             "novos": len(novos), "descartados": 0,
             "inexigiveis_descartados": c["inexigiveis_descartados"],
             "fechados_removidos": fechados,
+            "duplicatas_unidas": duplicatas,
         },
     }
 
@@ -414,7 +529,8 @@ def main() -> None:
 
     print(f"\nok  {len(base['editais'])} editais disputáveis no radar")
     print(f"    {c['inexigiveis_descartados']} inexigibilidade(s) descartada(s) · "
-          f"{fechados} disputa(s) encerrada(s) removida(s)")
+          f"{fechados} disputa(s) encerrada(s) removida(s) · "
+          f"{duplicatas} duplicata(s) unida(s)")
     print(f"    {len(folha)} para triar → {a.trabalho}/triagem.json")
     print(f"    estado fundido → {a.trabalho}/base.json")
     print(f"\nAgora: leia triagem.json, decida veredito e justificativa de cada um,\n"

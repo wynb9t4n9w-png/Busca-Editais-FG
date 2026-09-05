@@ -309,6 +309,25 @@ def valida(estado: dict) -> None:
               "do radar por inteiro: tools/coleta_pncp.py as descarta na coleta e "
               "a página não tem mais a aba. Remova a chave.")
 
+    # A memória é o caderno do filtro, e ela cresce sem parar por natureza. Duas
+    # coisas nunca podem acontecer com ela: carregar campo do funil comercial, e
+    # ser confundida com o radar.
+    mem = estado.get("memoria")
+    if mem is not None:
+        if not isinstance(mem, list):
+            falha("'memoria' precisa ser uma lista de editais já vistos.")
+        else:
+            sujos = [m.get("id") for m in mem
+                     if any(c in m for c in CAMPOS_PROIBIDOS)]
+            if sujos:
+                falha(f"{len(sujos)} registro(s) da memória carregam campo do "
+                      f"funil ({', '.join(CAMPOS_PROIBIDOS)}). Ela é o caderno do "
+                      "filtro, não o acompanhamento comercial.")
+            if len(mem) < len(estado.get("editais") or []):
+                falha(f"a memória tem {len(mem)} registros e o radar tem "
+                      f"{len(estado.get('editais') or [])}. Todo edital do radar "
+                      "passou pela memória — se ela é menor, a fusão não gravou.")
+
     rodadas = estado.get("rodadas") or []
     if not rodadas:
         falha("nenhuma rodada registrada no estado.")

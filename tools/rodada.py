@@ -211,11 +211,18 @@ def fase_camada2(t: Trabalho) -> dict:
 
 def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
     """A pergunta autoritativa, e a única que custa rede por edital."""
-    print(f"[5/6] conferindo {len(alvos)} editais no PNCP", flush=True)
-    g = t.guardado("situacao")
-    if g:
-        return g
-    achados: dict[str, dict] = {}
+    # O checkpoint vale por edital, não em bloco. Retomar em bloco parecia
+    # certo até o filtro mudar no meio do dia: a coleta trouxe um candidato novo,
+    # o cache da conferência era do conjunto antigo, e o edital entrou no radar
+    # SEM situacao_item — pego pelo validador, mas só depois de montar a página.
+    # Conferir o que falta é tão barato quanto e não tem esse buraco.
+    achados: dict[str, dict] = dict(t.guardado("situacao") or {})
+    faltam = [e for e in alvos if e["id"] not in achados]
+    print(f"[5/6] conferindo {len(faltam)} de {len(alvos)} editais no PNCP "
+          f"({len(alvos) - len(faltam)} já conferidos)", flush=True)
+    if not faltam:
+        return achados
+    alvos = faltam
     for i, e in enumerate(alvos, 1):
         r = situacao.confere_edital(e)
         achados[e["id"]] = {k: r[k] for k in

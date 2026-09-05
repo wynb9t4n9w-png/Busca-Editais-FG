@@ -56,9 +56,17 @@ outro, e cada uma deixa arquivo no disco.
 > cd /home/user/Busca-Editais-FG      # clone se faltar; leitura funciona
 > python3 tools/rodada.py <caminho do HTML do artifact>
 > ```
-> Um comando faz suíte, coleta do PNCP, conferência item a item na fonte, e a
-> fusão com o estado anterior. Ele **para com `FALHA:` e código diferente de zero**
-> em qualquer problema, e a mensagem diz o que fazer. Leia a saída inteira.
+> Um comando faz suíte, **as duas varreduras do PNCP**, conferência item a item
+> na fonte, e a fusão com o estado anterior. Ele **para com `FALHA:` e código
+> diferente de zero** em qualquer problema, e a mensagem diz o que fazer. Leia a
+> saída inteira.
+>
+> As duas varreduras respondem perguntas diferentes: `/publicacao` traz o que
+> entrou nas últimas 24h — e o que não declara prazo; `/proposta` traz tudo que
+> **aceita proposta nos próximos 60 dias**, publicado quando for. Medido em
+> 06/09/2026 no mesmo instante: a primeira achava 13 aderentes disputáveis, as
+> duas juntas acharam 94. Um edital fica aberto de 15 a 45 dias — olhar só o de
+> ontem era ver um trigésimo do açude.
 >
 > Se ele falhar por varredura incompleta, rode de novo: o PNCP devolve 503 em
 > rajada. **Ele retoma do checkpoint** — a coleta que já deu certo não é repetida.
@@ -176,8 +184,9 @@ outro, e cada uma deixa arquivo no disco.
 > Em português, no máximo 10 linhas: contratações do PNCP e se a conta fechou;
 > fontes externas visitadas/abertas e qual rendeu; candidatos, triados,
 > conferidos; quentes e mornos, com objeto e valor de cada quente; quantos
-> `relicita`; quantos fecham prazo em 7 dias; quantas inexigibilidades foram
-> descartadas; duração; e o link do artifact.
+> `relicita`; quantos fecham prazo em 7 dias; quantos candidatos **só a
+> varredura por prazo aberto enxergou**; quantas inexigibilidades e quantas
+> disputas encerradas saíram; duração; e o link do artifact.
 >
 > Feche com DUAS LINHAS do PASSO 8: a proposta mais forte de termo ou veto, e
 > qualquer órgão que voltou a comprar.

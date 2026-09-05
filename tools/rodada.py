@@ -55,7 +55,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import situacao                                    # noqa: E402
-from coleta_pncp import coleta                     # noqa: E402
+from coleta_pncp import coleta, coleta_abertas     # noqa: E402
 
 TZ = timezone(timedelta(hours=-3))
 RAIZ = Path(__file__).resolve().parent.parent
@@ -77,7 +77,7 @@ DISPUTAVEL = ("aberto", "indeterminado", "relicita")
 # meio da rodada, que é o pior lugar para descobrir isso. Subiu para 2 quando a
 # coleta deixou de devolver "mercado" e passou a devolver
 # "inexigiveis_descartados".
-VERSAO_CHECKPOINT = 2
+VERSAO_CHECKPOINT = 3
 
 
 # ───────────────────────── checkpoint ─────────────────────────
@@ -121,7 +121,7 @@ class Trabalho:
 # ───────────────────────── fases ─────────────────────────
 
 def fase_suite(t: Trabalho, pular: bool) -> None:
-    print("[1/4] suíte", flush=True)
+    print("[1/5] suíte", flush=True)
     if pular:
         print("    pulada por --sem-suite", flush=True)
         return
@@ -136,7 +136,7 @@ def fase_suite(t: Trabalho, pular: bool) -> None:
 
 
 def fase_coleta(t: Trabalho) -> dict:
-    print("[2/4] coleta do PNCP", flush=True)
+    print("[2/5] coleta por publicação", flush=True)
     g = t.guardado("coleta")
     if g:
         return g
@@ -156,9 +156,32 @@ def fase_coleta(t: Trabalho) -> dict:
     return t.guarda("coleta", r)
 
 
+def fase_abertas(t: Trabalho) -> dict:
+    """
+    A outra metade do açude: tudo com prazo de proposta aberto, publicado quando
+    for. Fase própria porque são ~27 mil registros e uns 10 minutos, e um
+    tropeço aqui não pode custar a coleta por publicação que já deu certo.
+    """
+    print("[3/5] varredura por prazo aberto", flush=True)
+    g = t.guardado("abertas")
+    if g:
+        return g
+    r = coleta_abertas(0)
+    c = r["cobertura"]
+    print(f"    {c['brutos']:,} com proposta aberta até {c['ate']} · "
+          f"{c['candidatos']} candidatos · "
+          f"{c['inexigiveis_descartados']} inexigibilidade(s) fora", flush=True)
+    # Sem portão de completude aqui, de propósito: um edital que escapou hoje
+    # continua aberto e volta amanhã. O portão duro é o da varredura por
+    # publicação, onde a página perdida some para sempre.
+    if c["erros"]:
+        print(f"    {len(c['erros'])} aviso(s): {c['erros'][:2]}", flush=True)
+    return t.guarda("abertas", r)
+
+
 def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
     """A pergunta autoritativa, e a única que custa rede por edital."""
-    print(f"[3/4] conferindo {len(alvos)} editais na fonte", flush=True)
+    print(f"[4/5] conferindo {len(alvos)} editais na fonte", flush=True)
     g = t.guardado("situacao")
     if g:
         return g
@@ -269,6 +292,15 @@ def main() -> None:
 
     fase_suite(t, a.sem_suite)
     r = fase_coleta(t)
+    ab = fase_abertas(t)
+
+    # As duas varreduras se sobrepõem bastante; o `id` decide, e a de publicação
+    # tem precedência porque é a que carrega a conta de cobertura.
+    ja = {c["id"] for c in r["candidatos"]}
+    novos_abertos = [c for c in ab["candidatos"] if c["id"] not in ja]
+    r["candidatos"] = r["candidatos"] + novos_abertos
+    print(f"    {len(novos_abertos)} candidato(s) que só a varredura por prazo "
+          f"aberto enxergou", flush=True)
 
     # Quem precisa de conferência: os candidatos de hoje, mais os editais do
     # radar que ainda estavam disputáveis — porque "aberto" de ontem pode ser
@@ -280,7 +312,7 @@ def main() -> None:
     alvos = r["candidatos"] + antigos
     achados = fase_situacao(t, alvos)
 
-    print("[4/4] fundindo com o estado anterior", flush=True)
+    print("[5/5] fundindo com o estado anterior", flush=True)
     base, novos, fechados = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
@@ -304,6 +336,8 @@ def main() -> None:
             # reconferência, e continua conferido: a prova é o `situacao_item`
             # que ele carrega. Contar só o desta rodada reprovava a rodada por um
             # trabalho que já tinha sido feito.
+            "abertas": {k: ab["cobertura"][k] for k in
+                        ("brutos", "candidatos", "dias", "inexigiveis_descartados")},
             "triados": 0,
             "conferidos": sum(1 for e in base["editais"]
                               if (e.get("situacao_item") or "").strip()),

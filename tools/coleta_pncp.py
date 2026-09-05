@@ -39,6 +39,7 @@ from perfil import avalia, normaliza, LIMIAR_CANDIDATO  # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
+BASE_ABERTAS = "https://pncp.gov.br/api/consulta/v1/contratacoes/proposta"
 # A API aceita tamanhoPagina entre 10 e 50 — sondado em 03/09/2026; fora da
 # faixa devolve HTTP 400. Usamos o teto: 5.849 contratações em 124 páginas.
 TAM_PAGINA = 50
@@ -61,12 +62,40 @@ PAUSA_REPESCA = 20.0
 PAUSA_429 = 15.0
 TETO_PAGINAS = 400  # trava de segurança; nenhuma modalidade chegou perto disso
 
+# Quanto do futuro a varredura de prazos abertos alcança. 60 dias cobrem com
+# folga a janela usual de 15 a 45 dias, e o custo é uma varredura de ~27 mil
+# registros — uns 7 minutos, dentro do orçamento da rodada.
+DIAS_DE_PRAZO = 60
 
-def busca(modalidade: int, d1: str, d2: str, pagina: int) -> dict:
-    """Uma página da API, com repetição em espera crescente."""
-    url = (f"{BASE}?dataInicial={d1}&dataFinal={d2}"
-           f"&codigoModalidadeContratacao={modalidade}"
-           f"&pagina={pagina}&tamanhoPagina={TAM_PAGINA}")
+
+def busca(modalidade: int, d1: str, d2: str, pagina: int, abertas: bool = False) -> dict:
+    """
+    Uma página da API, com repetição em espera crescente.
+
+    Dois endpoints, duas perguntas diferentes:
+
+      /contratacoes/publicacao  o que foi PUBLICADO neste intervalo
+      /contratacoes/proposta    o que está com PRAZO DE PROPOSTA ABERTO
+
+    O segundo entrou em 06/09/2026 e a medição que o motivou foi esta: a
+    varredura por publicação, olhando as últimas 24 horas, encontrou 13 editais
+    aderentes disputáveis. A varredura por proposta aberta, no mesmo instante,
+    encontrou 94 — entre eles um diagnóstico institucional de R$ 2,3 milhões em
+    Barueri, com prazo até 14/09, publicado antes da nossa janela.
+
+    A causa é óbvia depois de vista: um edital fica aberto de 15 a 45 dias, e
+    olhar só o que foi publicado ontem enxerga uma fatia de um trigésimo do que
+    dá para disputar hoje. O radar estava pescando na correnteza de um dia e não
+    no açude inteiro.
+    """
+    if abertas:
+        url = (f"{BASE_ABERTAS}?dataFinal={d2}"
+               f"&codigoModalidadeContratacao={modalidade}"
+               f"&pagina={pagina}&tamanhoPagina={TAM_PAGINA}")
+    else:
+        url = (f"{BASE}?dataInicial={d1}&dataFinal={d2}"
+               f"&codigoModalidadeContratacao={modalidade}"
+               f"&pagina={pagina}&tamanhoPagina={TAM_PAGINA}")
     ultimo = ""
     for t in range(TENTATIVAS):
         try:
@@ -102,9 +131,9 @@ def busca(modalidade: int, d1: str, d2: str, pagina: int) -> dict:
     return {"data": [], "totalPaginas": 0, "totalRegistros": 0, "_erro": ultimo}
 
 
-def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
+def colhe_modalidade(modalidade: int, d1: str, d2: str, abertas: bool = False) -> dict:
     """Todas as páginas de uma modalidade. Devolve os registros brutos."""
-    primeira = busca(modalidade, d1, d2, 1)
+    primeira = busca(modalidade, d1, d2, 1, abertas)
     if primeira.get("_erro"):
         return {"modalidade": modalidade, "erro": primeira["_erro"],
                 "brutos": [], "paginas": 0, "total": 0}
@@ -116,7 +145,7 @@ def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
 
     perdidas: list[int] = []
     for p in range(2, paginas + 1):
-        d = busca(modalidade, d1, d2, p)
+        d = busca(modalidade, d1, d2, p, abertas)
         if d.get("_erro"):
             perdidas.append(p)
             continue
@@ -129,7 +158,7 @@ def colhe_modalidade(modalidade: int, d1: str, d2: str) -> dict:
         time.sleep(PAUSA_REPESCA)
         ainda: list[int] = []
         for p in perdidas:
-            d = busca(modalidade, d1, d2, p)
+            d = busca(modalidade, d1, d2, p, abertas)
             if d.get("_erro"):
                 ainda.append(p)
                 erros.append(f"p{p}: {d['_erro']}")
@@ -273,6 +302,17 @@ def converte(reg: dict, aval: dict) -> dict:
 
 
 def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
+    """
+    A varredura por PUBLICAÇÃO: o que entrou no PNCP desde ontem.
+
+    É ela que traz o edital novinho e, sobretudo, o que não declara prazo — a
+    contratação direta que precisa ser conferida na fonte antes de qualquer
+    veredito. É também a única que sustenta a conta de cobertura (`brutos` vs
+    `esperados`), porque é aqui que uma página perdida significa contratação que
+    ninguém viu.
+
+    A outra metade do açude está em `coleta_abertas`.
+    """
     inicio = datetime.now(TZ)
     resultados = []
     with ThreadPoolExecutor(max_workers=trabalhadores) as pool:
@@ -297,10 +337,10 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             modalidades_falhas.append(nome)
             continue
         erros.extend(f"{nome}/{e}" for e in r.get("erros", []))
+        paginas += r["paginas"]
         paginas_perdidas += len(r.get("perdidas") or [])
         esperados += r.get("total") or 0
         brutos += len(r["brutos"])
-        paginas += r["paginas"]
         por_modalidade[nome] = len(r["brutos"])
 
         for reg in r["brutos"]:
@@ -351,6 +391,78 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "erros": erros,
             "iniciado_em": inicio.isoformat(timespec="seconds"),
             "concluido_em": fim.isoformat(timespec="seconds"),
+        },
+        "candidatos": candidatos,
+    }
+
+
+def coleta_abertas(min_score: int, trabalhadores: int = 4,
+                   dias: int = DIAS_DE_PRAZO) -> dict:
+    """
+    A varredura por PRAZO ABERTO: tudo que aceita proposta nos próximos `dias`,
+    sem olhar quando foi publicado.
+
+    Por que ela existe, medido em 06/09/2026 no mesmo instante:
+
+        varredura por publicação (24h)      13 aderentes disputáveis
+        varredura por prazo aberto (60d)    94 aderentes disputáveis
+
+    Setenta e um por cento das oportunidades abertas eram invisíveis ao radar, e
+    não por falha de filtro — por falha de alcance. Um edital fica aberto de 15
+    a 45 dias, e olhar só o que foi publicado ontem é ver um trigésimo do que dá
+    para disputar hoje. Entre as que faltavam havia um diagnóstico institucional
+    de R$ 2,3 milhões em Barueri, com prazo até 14/09.
+
+    Fica em função separada, e não junto da outra, por causa do checkpoint: são
+    ~27 mil registros e uns 10 minutos, e um tropeço aqui não pode custar a
+    varredura por publicação que já tinha dado certo.
+    """
+    inicio = datetime.now(TZ)
+    limite = (datetime.now(TZ) + timedelta(days=dias)).strftime("%Y%m%d")
+    hoje = datetime.now(TZ).strftime("%Y%m%d")
+
+    brutos = 0
+    candidatos: list[dict] = []
+    vistos: set[str] = set()
+    inexigiveis = 0
+    erros: list[str] = []
+
+    with ThreadPoolExecutor(max_workers=trabalhadores) as pool:
+        for r in pool.map(lambda m: colhe_modalidade(m, hoje, limite, True), MODALIDADES):
+            nome = MODALIDADES[r["modalidade"]]
+            if r.get("erro"):
+                # Uma modalidade que falha aqui não reprova a rodada: o edital
+                # continua aberto e reaparece amanhã. Registrar basta.
+                erros.append(f"{nome}: {r['erro']}")
+                continue
+            erros.extend(f"{nome}/{e}" for e in r.get("erros", []))
+            brutos += len(r["brutos"])
+            for reg in r["brutos"]:
+                aval = avalia(reg.get("objetoCompra"), reg.get("valorTotalEstimado"),
+                              reg.get("modalidadeNome"), reg.get("informacaoComplementar"))
+                if aval["score"] < max(min_score, LIMIAR_CANDIDATO):
+                    continue
+                cand = converte(reg, aval)
+                if cand["id"] in vistos:
+                    continue
+                vistos.add(cand["id"])
+                if cand["disputa"] == "inexigivel":
+                    inexigiveis += 1
+                    continue
+                candidatos.append(cand)
+
+    candidatos.sort(key=lambda c: (-c["score"], -(c["valor"] or 0)))
+    return {
+        "cobertura": {
+            "fonte": "PNCP/proposta",
+            "ate": limite,
+            "dias": dias,
+            "brutos": brutos,
+            "candidatos": len(candidatos),
+            "inexigiveis_descartados": inexigiveis,
+            "erros": erros,
+            "iniciado_em": inicio.isoformat(timespec="seconds"),
+            "concluido_em": datetime.now(TZ).isoformat(timespec="seconds"),
         },
         "candidatos": candidatos,
     }

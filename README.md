@@ -96,6 +96,50 @@ assim faltar, ele **diz**, e o validador barra. Isso importa: na primeira
 execução de teste, nove páginas se perderam para HTTP 503 e 504 — cerca de
 quatrocentas contratações desapareceram sem nenhum sinal na saída.
 
+### As duas varreduras da camada 1
+
+O PNCP tem dois endpoints, e por três dias este projeto usou só um.
+
+| | |
+|---|---|
+| `/contratacoes/publicacao` | o que foi **publicado** neste intervalo |
+| `/contratacoes/proposta` | o que está com **prazo de proposta aberto** |
+
+A varredura por publicação olha as últimas 24 horas. É ela que traz o edital
+novinho e, sobretudo, o que **não declara prazo** — a contratação direta que
+precisa ser conferida na fonte antes de qualquer veredito.
+
+Só que um edital fica aberto de 15 a 45 dias. Olhar só o que foi publicado
+ontem é ver **um trigésimo do que dá para disputar hoje**. Medido em
+06/09/2026, no mesmo instante:
+
+| | |
+|---|---|
+| varredura por publicação (24h) | **13** aderentes disputáveis |
+| varredura por prazo aberto (60 dias) | **94** aderentes disputáveis |
+
+Setenta e um por cento das oportunidades abertas eram invisíveis ao radar, e
+não por falha de filtro — por falha de alcance. Entre as que faltavam:
+
+> **Barueri/SP — R$ 2,3 milhões — prazo até 14/09**
+> *"Diagnóstico institucional da rede municipal de ensino, com análise
+> administrativa, pedagógica, organizacional…"*
+
+Portfólio da casa em cheio, ticket sete vezes o mínimo, e o radar não tinha como
+enxergá-lo: foi publicado antes da janela de 24 horas.
+
+Hoje a camada 1 faz as duas varreduras e une pelo `id`. A conta de cobertura
+(`brutos` vs `esperados`, a que reprova a rodada) continua sendo **só da
+varredura por publicação**: é ali que uma página perdida significa contratação
+que ninguém viu. Uma página perdida na varredura por prazo reaparece amanhã,
+porque o edital continua aberto.
+
+Antes de sair procurando culpa no filtro, vale registrar o que a mesma medição
+inocentou: das 5.412 contratações de um dia, **5.368 pontuaram zero**, e os 26
+zerados de maior valor eram obra, eventos, veterinária, concurso público, TI e
+móveis. Nenhum era oportunidade. O filtro estava certo; o alcance é que era
+curto.
+
 ### Camada 2 — o que o PNCP não alcança
 
 ```bash

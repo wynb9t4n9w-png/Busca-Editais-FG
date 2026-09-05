@@ -96,6 +96,14 @@ Esta seção começou como "o que fica pendente". Ficou pendente por algumas hor
 - **`tools/fontes_externas.py` virou código morto** — a camada 2 em código
   tornou o plano em prosa desnecessário. Removido, com o teste de ordenação
   substituído por um teste de coerência do cadastro de fontes.
+- **O id de fonte externa quebrava o funil.** O número de licitação do Sesc é
+  `0041/25-PG` e o do SESI-SP é `N. 564/2026 | RCA Disputa Aberta`. O funil
+  grava em `acompanhamento/<id>`, e a barra transformava isso em caminho de
+  coleção: a marcação da equipe sumiria sem erro visível, no dia em que um
+  edital do Sistema S entrasse no radar. **Feito:** `camada2.py` limpa o id na
+  origem (o número inteiro continua em `numero`, que é o que a tela mostra), e
+  o validador reprova qualquer id com barra, espaço ou barra vertical — o
+  portão é para a próxima fonte, que ainda não foi escrita.
 - **O Sebrae entra pelo credenciamento, não pelo radar.** Continua verdade:
   seis licitações abertas no Sistema inteiro, nenhuma aderente, porque
   consultoria vai toda para o SGF. Não é defeito da coleta.

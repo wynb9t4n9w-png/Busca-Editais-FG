@@ -212,6 +212,9 @@ def valida_externas(e: dict) -> None:
                   "nas que falharam.")
 
 
+ID_SEGURO = re.compile(r"^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$")
+
+
 def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
     for campo in ("id", "fonte", "orgao", "objeto", "link"):
         if not (e.get(campo) or "").strip():
@@ -221,6 +224,17 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
     if eid in ids:
         falha(f"{onde}: id '{eid}' duplicado no radar.")
     ids.add(eid)
+
+    # O id vira caminho no banco do acompanhamento (`acompanhamento/<id>`). Uma
+    # barra o transforma em caminho de coleção, e a marcação da equipe some sem
+    # erro visível. O número de licitação do Sesc é "0041/25-PG" e o do SESI-SP
+    # é "N. 564/2026 | RCA Disputa Aberta" — os dois passariam. tools/camada2.py
+    # já os limpa na origem; este portão existe para a próxima fonte, que ainda
+    # não foi escrita.
+    if eid and not ID_SEGURO.match(eid):
+        falha(f"{onde}: id '{eid}' tem caractere que quebra o funil. Só valem "
+              "letras, dígitos, ponto, hífen, sublinhado e os dois-pontos do "
+              "prefixo da fonte — nada de barra, espaço ou barra vertical.")
 
     link = (e.get("link") or "").strip()
     if link and not link.startswith(("http://", "https://")):

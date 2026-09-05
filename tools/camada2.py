@@ -71,6 +71,7 @@ import json
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -163,6 +164,24 @@ def pega(url: str, timeout: int = 60, extra: dict | None = None,
                 continue
             return ultimo or 0, ""
     return ultimo or 0, ""
+
+
+def _id(prefixo: str, bruto: str) -> str:
+    """
+    Um id que sobreviva ao banco do acompanhamento.
+
+    O funil grava em `acompanhamento/<id>`. Uma barra no id — e o número de
+    licitação do Sesc é "0041/25-PG" — transforma isso num caminho de coleção
+    em vez de documento, e a marcação da equipe some sem erro visível. Espaço e
+    barra vertical, que o SESI-SP traz ("N. 564/2026 | RCA Disputa Aberta"),
+    são do mesmo tipo de problema.
+
+    O número original continua inteiro no campo `numero`, que é o que a tela
+    mostra. Isto aqui é só a chave.
+    """
+    limpo = unicodedata.normalize("NFKD", bruto or "").encode("ascii", "ignore").decode()
+    limpo = re.sub(r"[^A-Za-z0-9._-]+", "-", limpo).strip("-")
+    return f"{prefixo}:{limpo or 'sem-numero'}"
 
 
 def _texto(s: str) -> str:
@@ -292,7 +311,7 @@ def sesc_dn() -> dict:
         numero = _texto(num.group(2))
         modal = [t for pos, t in titulos if pos < m.start()]
         itens.append({
-            "id": f"sesc-dn:{numero}",
+            "id": _id("sesc-dn", numero),
             "fonte": "Sesc/DN",
             "orgao": "Sesc — Departamento Nacional",
             "uf": None,
@@ -441,7 +460,7 @@ def _sp(id_: str, entidade: str, host: str) -> dict:
         numero = campo("NumeroTipo", "</div>").strip("| ")
         doc = re.search(r'href="(/licitacoes/DocumentosSap[^"]+)"', bloco)
         itens.append({
-            "id": f"{id_}:{numero}",
+            "id": _id(id_, numero),
             "fonte": entidade,
             "orgao": f"{entidade} — Departamento Regional de São Paulo",
             "uf": "SP",

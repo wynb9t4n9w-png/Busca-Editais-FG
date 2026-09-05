@@ -55,6 +55,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import situacao                                    # noqa: E402
+import camada2                                     # noqa: E402
 from coleta_pncp import coleta, coleta_abertas     # noqa: E402
 
 TZ = timezone(timedelta(hours=-3))
@@ -121,7 +122,7 @@ class Trabalho:
 # ───────────────────────── fases ─────────────────────────
 
 def fase_suite(t: Trabalho, pular: bool) -> None:
-    print("[1/5] suíte", flush=True)
+    print("[1/6] suíte", flush=True)
     if pular:
         print("    pulada por --sem-suite", flush=True)
         return
@@ -136,7 +137,7 @@ def fase_suite(t: Trabalho, pular: bool) -> None:
 
 
 def fase_coleta(t: Trabalho) -> dict:
-    print("[2/5] coleta por publicação", flush=True)
+    print("[2/6] coleta por publicação", flush=True)
     g = t.guardado("coleta")
     if g:
         return g
@@ -162,7 +163,7 @@ def fase_abertas(t: Trabalho) -> dict:
     for. Fase própria porque são ~27 mil registros e uns 10 minutos, e um
     tropeço aqui não pode custar a coleta por publicação que já deu certo.
     """
-    print("[3/5] varredura por prazo aberto", flush=True)
+    print("[3/6] varredura por prazo aberto", flush=True)
     g = t.guardado("abertas")
     if g:
         return g
@@ -179,9 +180,38 @@ def fase_abertas(t: Trabalho) -> dict:
     return t.guarda("abertas", r)
 
 
+def fase_camada2(t: Trabalho) -> dict:
+    """
+    O que não está no PNCP. Era um plano em prosa para o agente visitar quinze
+    portais com WebFetch, e rendeu zero em três rodadas — metade das fontes
+    devolvendo 403. O 403 era bloqueio de User-Agent, não política de robô, e
+    com o cabeçalho de navegador o Canal do Fornecedor do Sebrae devolve JSON
+    com as licitações de todo o Sistema. Virou coleta, como a do PNCP.
+    """
+    print("[4/6] camada 2 (fora do PNCP)", flush=True)
+    g = t.guardado("camada2")
+    if g:
+        return g
+    try:
+        r = camada2.colhe()
+    except Exception as e:                       # rede lá fora não derruba a rodada
+        print(f"    aviso: camada 2 falhou inteira ({e}). O PNCP segue.", flush=True)
+        return t.guarda("camada2", {"cobertura": {"tentadas": 0, "abertas": 0,
+                                                  "candidatos": 0, "brutos": 0,
+                                                  "falhas": [str(e)[:160]],
+                                                  "sem_candidato": []},
+                                    "candidatos": []})
+    c = r["cobertura"]
+    print(f"    {c['abertas']}/{c['tentadas']} fonte(s) · {c['brutos']} abertas · "
+          f"{c['candidatos']} candidato(s)", flush=True)
+    for f in c["falhas"]:
+        print(f"    falhou: {f}", flush=True)
+    return t.guarda("camada2", r)
+
+
 def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
     """A pergunta autoritativa, e a única que custa rede por edital."""
-    print(f"[4/5] conferindo {len(alvos)} editais na fonte", flush=True)
+    print(f"[5/6] conferindo {len(alvos)} editais no PNCP", flush=True)
     g = t.guardado("situacao")
     if g:
         return g
@@ -302,6 +332,10 @@ def main() -> None:
     print(f"    {len(novos_abertos)} candidato(s) que só a varredura por prazo "
           f"aberto enxergou", flush=True)
 
+    c2 = fase_camada2(t)
+    ja = {c["id"] for c in r["candidatos"]}
+    r["candidatos"] += [c for c in c2["candidatos"] if c["id"] not in ja]
+
     # Quem precisa de conferência: os candidatos de hoje, mais os editais do
     # radar que ainda estavam disputáveis — porque "aberto" de ontem pode ser
     # "homologado" de hoje, e é justamente esse o edital que engana.
@@ -310,9 +344,13 @@ def main() -> None:
                if e["id"] not in ids_hoje
                and e.get("disputa") in ("aberto", "indeterminado", "relicita")]
     alvos = r["candidatos"] + antigos
+    # Só o que tem id do PNCP vai para a conferência na fonte: um edital do
+    # Sebrae não existe lá, e pedir por ele devolveria "desconhecida" — o que
+    # depois reprovaria a rodada por cobertura de conferência.
+    alvos = [e for e in alvos if str(e.get("id", "")).startswith("pncp:")]
     achados = fase_situacao(t, alvos)
 
-    print("[5/5] fundindo com o estado anterior", flush=True)
+    print("[6/6] fundindo com o estado anterior", flush=True)
     base, novos, fechados = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
@@ -330,7 +368,9 @@ def main() -> None:
             "pncp": {k: c[k] for k in ("brutos", "esperados", "paginas",
                                        "paginas_perdidas", "candidatos",
                                        "modalidades_falhas", "erros")},
-            "externas": {"tentadas": 0, "abertas": 0, "candidatos": 0, "falhas": []},
+            "externas": {k: c2["cobertura"].get(k) for k in
+                         ("tentadas", "abertas", "candidatos", "falhas",
+                          "sem_candidato")},
             # Quantos editais do radar têm situação conferida na fonte — não
             # quantos ESTA rodada conferiu. Um edital já decidido não precisa de
             # reconferência, e continua conferido: a prova é o `situacao_item`

@@ -142,36 +142,56 @@ curto.
 
 ### Camada 2 — o que o PNCP não alcança
 
-```bash
-python3 tools/fontes_externas.py               # o plano de leitura
-python3 tools/fontes_externas.py --relatorio <estado.html>
+O Sistema S (Sesc, Senac, Sesi, Senai, Sebrae) compra exatamente o portfólio da
+Thutor e não publica no PNCP. Por três rodadas a camada 2 foi um plano em prosa:
+quinze portais listados, o agente da madrugada visitando um a um com WebFetch.
+Rendeu **zero candidatos**, com metade das fontes devolvendo HTTP 403.
+
+A conclusão fácil seria "os portais bloqueiam robô". A conclusão certa apareceu
+ao testar em 06/09/2026: **eram bloqueios de User-Agent.** O mesmo endereço que
+devolve 403 para um cliente genérico devolve 200 para o cabeçalho que qualquer
+navegador manda. E o Canal do Fornecedor do Sebrae, que parecia uma página vazia
+de JavaScript, tem por trás um endpoint que devolve JSON com as licitações
+abertas do Sistema inteiro — Nacional e as 27 unidades estaduais:
+
+```
+GET scf3.sebrae.com.br/PortalCf/Home/GetLicitacoesGrid?draw=1&start=0&length=500
 ```
 
-O Sistema S (Sebrae, Sesi, Senai, Sesc, Senac, Senar, Sest/Senat) tem
-regulamento próprio de licitação e publica nos seus portais. Parte espelha no
-PNCP por opção — o SEBRAE/PR aparece lá —, a maioria não. E é o segmento mais
-aderente à Thutor. Estatais e bancos públicos (Lei 13.303) são o mesmo caso,
-com tickets maiores.
+A camada 2 deixou de ser tarefa de leitura e virou coleta, em
+`tools/camada2.py`: determinística, testável, e sem depender de alguém
+interpretar uma página.
 
-Este arquivo **não é um raspador**, e isso é decisão de projeto. Raspar trinta
-portais em Python quebra toda semana: 403 antirrobô, página montada em
-JavaScript, seletor que muda sem aviso. O que existe é um registro — onde olhar
-e o que procurar — lido pelo modelo via `WebFetch`, que atravessa página
-dinâmica e entende layout novo sem manutenção.
+**O que a investigação portal a portal encontrou:**
 
-Duas coisas que a sondagem de 03/09/2026 ensinou e que ficaram gravadas no
-registro:
+| | |
+|---|---|
+| **Sebrae — Canal do Fornecedor** | JSON de todo o Sistema. **Funciona**, e está integrado |
+| SESI-SP | abre, mas lista só nomes de PDF sem objeto (`PSDA 532-2026BB.pdf`) |
+| SENAI-SC | publica planilha — de **contratos de 2022**, não de editais abertos |
+| Senac DN · Sesc DN · Senac-ES | 403 e desafio de Cloudflare mesmo com User-Agent de navegador |
+| SENAI-SP · CNI | o proxy de saída recusa a conexão |
+| BEC/SP | a lista fica atrás de formulário de busca |
 
-- **Metade das URLs "que abriam" eram páginas-índice.** A listagem real do Sesc
-  está em `sesc.com.br/licitacoes/licitacoes-em-andamento-v2/`, a do Senar em
-  `app3.cna.org.br/transparencia/`, e nenhuma das duas é adivinhável a partir da
-  página principal.
-- **O Sistema Sebrae inteiro publica num endereço só** — o Canal do Fornecedor,
-  `scf3.sebrae.com.br/portalcf` — e não em 27 portais estaduais. Mais
-  importante: o Sebrae contrata consultoria e instrutoria por **credenciamento
-  contínuo**, não por licitação avulsa. Quem não está credenciado não é
-  convidado, e nenhum radar de editais resolve isso. É uma tarefa de uma vez só,
-  não de todo dia.
+Os que não rendem continuam sendo sondados toda noite, com uma requisição cada.
+Um portal que hoje devolve 403 pode responder amanhã, e o registro de falhas é o
+que faz alguém perceber que uma fonte morreu — abandonar em silêncio é como
+perder cliente por não ligar.
+
+**A ressalva que importa sobre o Sebrae**, porque ele é o que mais promete e o
+que menos entrega por esta via: consultoria e instrutoria no Sistema Sebrae são
+contratadas por **credenciamento** (o SGF), não por licitação avulsa. As
+subáreas 1.5 Cultura e Clima, 1.6 Liderança, 1.10 Planejamento Estratégico de
+Pessoal, 7.2 Planejamento Estratégico e 7.3 Gestão de Processos são o portfólio
+da casa com outro nome — e quem não está credenciado não é chamado. Medido em
+06/09/2026, o Sistema inteiro tinha **seis licitações abertas**: energia solar no
+Tocantins, CFTV no Pará, quick massage para a Feira do Empreendedor em São Paulo.
+Nenhuma aderente, e isso não é defeito da fonte: é o que sobra depois que
+consultoria vai toda para o credenciamento.
+
+Ou seja: o radar diário cobre o Sebrae pelo que dá para cobrir, e a porta
+principal continua sendo o credenciamento — que se abre uma vez, não todo dia,
+e é decisão de uma pessoa, não de um script.
 
 ### O mecanismo melhora todo dia
 

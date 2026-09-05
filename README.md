@@ -322,6 +322,36 @@ Hoje `tools/coleta_pncp.py` as descarta antes de o candidato existir, e o descar
 validador recusa uma inexigibilidade em `editais` com qualquer veredito, e recusa
 também a chave `mercado` de volta no estado.
 
+### O radar guarda só o que ainda dá para pescar
+
+A mesma régua, aplicada ao resto. Um edital cuja disputa acabou não serve ao
+objetivo — **pescar oportunidade real e converter em vitória no certame** — com
+qualquer rótulo que se dê a ele. E o custo de mantê-lo não é neutro: em
+05/09/2026 o radar tinha 30 editais, dos quais **17 eram disputas encerradas**.
+Mais da metade da tela ocupada por processos em que não havia nada a fazer. Um
+arquivo assim faz o dia parecer cheio quando está vazio.
+
+Então saem, por uma regra só: **não disputável não fica.** Contratação direta já
+fechada, prazo vencido, processo cancelado, inexigibilidade.
+
+O **onde** cortar importa mais que o quê. O corte acontece em `tools/rodada.py`,
+na fusão, **depois** de `situacao.py` ler a situação item a item na fonte — nunca
+sobre o `disputa` que a coleta deduz. A dedução é palpite, e em 03/09/2026 ela
+escondeu dois editais ainda disputáveis como se já tivessem dono. Cortar por
+palpite trocaria um arquivo inchado por oportunidade perdida em silêncio, que é o
+erro caro: um arquivo inchado incomoda, uma oportunidade que sumiu não reclama.
+
+O validador reprova qualquer edital não disputável no estado, com veredito
+nenhum, e o número de removidos entra na cobertura da rodada.
+
+Uma consequência a acompanhar: quando a equipe passar a usar o funil, um edital
+marcado como "proposta enviada" vai desaparecer no dia em que o certame fechar, e
+com ele o registro de que disputamos. Hoje o funil está vazio e nada se perdeu;
+no dia em que incomodar, a correção é preservar o que tem marcação.
+
+`contratos.py` e a leitura de vencedor em `situacao.py` continuam — é assim que
+se sabe que um edital **fechou**, que é a informação que o tira do radar.
+
 ### A rodada que não aconteceu
 
 Em 05/09/2026 a varredura das 02:00 rodou 3 minutos e 45 segundos, terminou com

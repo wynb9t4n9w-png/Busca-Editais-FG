@@ -97,8 +97,7 @@ outro, e cada uma deixa arquivo no disco.
 > - `quente` — aderência direta ao portfólio, `disputa` em `aberto`/`relicita`/
 >   `indeterminado`, porte compatível com o ticket (R$ 50 mil/mês; 6 meses =
 >   R$ 300 mil). Valor sigiloso **não** impede.
-> - `morno` — tema certo, porte menor, escopo impreciso, ou já decidido
->   (referência de mercado).
+> - `morno` — tema certo, mas porte menor ou escopo ainda impreciso.
 > - `frio` — não é o nosso negócio.
 >
 > **`relicita` (deserto ou fracassado) merece atenção EXTRA**: o órgão quis
@@ -107,6 +106,13 @@ outro, e cada uma deixa arquivo no disco.
 > Portfólio (institucional 2025): Cultura Organizacional; Estratégia;
 > Desenvolvimento de Líderes; Eficiência e Gestão (design organizacional, span of
 > control, workforce planning); Governança.
+>
+> **Só chega até você o que ainda dá para disputar.** `tools/rodada.py` remove na
+> fusão tudo que não é disputável — contratação direta já fechada, prazo vencido,
+> processo cancelado — e faz isso *depois* de `situacao.py` ler a situação na
+> fonte, nunca pelo palpite da coleta. O objetivo é pescar oportunidade real e
+> converter em vitória no certame; disputa terminada não serve a isso com rótulo
+> nenhum. O validador reprova a rodada que deixar uma passar, com veredito nenhum.
 >
 > **Inexigibilidade não chega até você**, e não deve chegar:
 > `tools/coleta_pncp.py` a descarta antes de o candidato existir. O art. 74 da

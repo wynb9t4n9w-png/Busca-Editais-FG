@@ -65,7 +65,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 MAX_EDITAIS = 400
 MAX_RODADAS = 30
 SCORE_MINIMO_FRIO = 30      # frio abaixo disto não entra: conta e some
-DIAS_PARA_APOSENTAR = 90    # frio com prazo vencido há mais que isso sai primeiro
+
+# O radar guarda só o que ainda dá para pescar. Decidido, encerrado e cancelado
+# saem; o prazo vencido também. A ferramenta existe para converter oportunidade
+# em vitória no certame, e um arquivo de disputas terminadas não ajuda nisso —
+# ocupa a tela e faz o dia parecer cheio quando está vazio.
+DISPUTAVEL = ("aberto", "indeterminado", "relicita")
 
 # Formato do checkpoint. Suba quando a forma do que as fases gravam mudar: um
 # checkpoint do formato velho retomado por código novo estoura num KeyError no
@@ -216,18 +221,27 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
         if a.get("situacao"):
             alvo["situacao_item"] = a["situacao"]
 
-    # Tetos. Aposenta primeiro o frio de prazo vencido há muito tempo; se ainda
-    # sobrar, o mais antigo. Nunca corta o que ainda está em disputa.
-    lista = list(editais.values())
-    if len(lista) > MAX_EDITAIS:
-        def descarte(e):
-            d = dias_desde(e.get("encerramento"))
-            velho = e.get("veredito") == "frio" and d is not None and d > DIAS_PARA_APOSENTAR
-            return (0 if velho else 1, e.get("publicado_em") or "")
-        lista.sort(key=descarte)
-        lista = lista[len(lista) - MAX_EDITAIS:]
+    # ── só fica o que ainda dá para disputar ──
+    # Este corte vem DEPOIS de o situacao.py falar, e essa ordem não é detalhe:
+    # o `disputa` que a coleta deduz é palpite, e em 03/09/2026 ele escondeu dois
+    # editais ainda disputáveis como se já tivessem dono. Cortar por palpite
+    # perderia oportunidade real — o erro que este projeto mais teme, porque some
+    # sem reclamar. Aqui já é o fato lido item a item na fonte.
+    def pescavel(e) -> bool:
+        if e.get("disputa") not in DISPUTAVEL:
+            return False
+        d = dias_desde(e.get("encerramento"))
+        return d is None or d <= 0          # sem prazo declarado, ou ainda por vir
 
+    lista = list(editais.values())
+    antes = len(lista)
+    lista = [e for e in lista if pescavel(e)]
+    fechados = antes - len(lista)
+
+    # O teto virou quase teórico depois do corte acima, mas continua: um dia com
+    # centenas de disputáveis não pode transformar a página num arquivo de 5 MB.
     lista.sort(key=lambda e: str(e.get("publicado_em") or ""), reverse=True)
+    lista = lista[:MAX_EDITAIS]
 
     novo = dict(estado)
     novo["editais"] = lista
@@ -235,7 +249,7 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     # aqui, uma vez, sem exigir purga manual de ninguém.
     novo.pop("mercado", None)
     novo["atualizado_em"] = datetime.now(TZ).isoformat(timespec="seconds")
-    return novo, novos
+    return novo, novos, fechados
 
 
 def main() -> None:
@@ -267,7 +281,7 @@ def main() -> None:
     achados = fase_situacao(t, alvos)
 
     print("[4/4] fundindo com o estado anterior", flush=True)
-    base, novos = funde(estado, r, achados, dia)
+    base, novos, fechados = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
     base["_rodada"] = {
@@ -295,6 +309,7 @@ def main() -> None:
                               if (e.get("situacao_item") or "").strip()),
             "novos": len(novos), "descartados": 0,
             "inexigiveis_descartados": c["inexigiveis_descartados"],
+            "fechados_removidos": fechados,
         },
     }
 
@@ -316,8 +331,9 @@ def main() -> None:
     (a.trabalho / "triagem.json").write_text(
         json.dumps(folha, ensure_ascii=False, indent=1), encoding="utf8")
 
-    print(f"\nok  {len(base['editais'])} editais no radar · "
-          f"{c['inexigiveis_descartados']} inexigibilidade(s) descartada(s)")
+    print(f"\nok  {len(base['editais'])} editais disputáveis no radar")
+    print(f"    {c['inexigiveis_descartados']} inexigibilidade(s) descartada(s) · "
+          f"{fechados} disputa(s) encerrada(s) removida(s)")
     print(f"    {len(folha)} para triar → {a.trabalho}/triagem.json")
     print(f"    estado fundido → {a.trabalho}/base.json")
     print(f"\nAgora: leia triagem.json, decida veredito e justificativa de cada um,\n"

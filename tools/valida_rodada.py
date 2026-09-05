@@ -243,11 +243,13 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
               "corta por modalidade antes de o candidato existir, e este edital "
               "chegou por outro caminho: camada 2, ou um registro antigo que "
               "sobreviveu à purga. Remova-o do estado.")
-    elif e.get("veredito") == "quente" and e["disputa"] not in DISPUTAVEL:
-        falha(f"{onde}: veredito 'quente' num edital '{e['disputa']}'. Quente significa "
-              "que a Thutor ainda pode disputar — e não dá para disputar contratação "
-              "direta sem janela de proposta, nem prazo que já venceu. Rebaixe para "
-              "morno e diga na justificativa que serve como referência de mercado.")
+    elif e["disputa"] not in DISPUTAVEL:
+        falha(f"{onde}: disputa '{e['disputa']}' — o certame acabou, e o radar só "
+              "guarda o que ainda dá para pescar. A ferramenta existe para converter "
+              "oportunidade em vitória no certame; um arquivo de disputas terminadas "
+              "ocupa a tela e faz o dia parecer cheio quando está vazio. "
+              "tools/rodada.py remove estes na fusão, DEPOIS de situacao.py falar — "
+              "nunca pelo palpite da coleta, que já escondeu edital ainda disputável.")
 
     if e.get("veredito") not in VEREDITOS:
         falha(f"{onde}: veredito '{e.get('veredito')}' inválido "
@@ -421,12 +423,15 @@ def main() -> None:
     ext = cob.get("externas") or {}
     editais = estado.get("editais") or []
     quentes = sum(1 for e in editais if e.get("veredito") == "quente")
-    decididos = sum(1 for e in editais if e.get("disputa") == "decidido")
-    com_vencedor = sum(1 for e in editais if e.get("vencedor"))
+    urgentes = sum(1 for e in editais
+                   if (e.get("encerramento") or "")[:10]
+                   and (datetime.fromisoformat(e["encerramento"][:10]).date()
+                        - datetime.now(TZ).date()).days <= 7)
+    com_prazo = sum(1 for e in editais if e.get("encerramento"))
 
     print(f"ok  rodada {r.get('data')} · {len(editais)} editais no radar "
-          f"({quentes} quentes, {decididos} já contratados"
-          + (f", {com_vencedor} com fornecedor identificado" if com_vencedor else "") + ")")
+          f"({quentes} quentes, {com_prazo} com prazo declarado"
+          + (f", {urgentes} fecham em 7 dias" if urgentes else "") + ")")
     print(f"    PNCP: {pncp.get('brutos', 0):,} de {pncp.get('esperados', 0):,} "
           f"contratações · {pncp.get('candidatos', 0)} candidatos")
     print(f"    externas: {ext.get('abertas', 0)}/{ext.get('tentadas', 0)} fontes "

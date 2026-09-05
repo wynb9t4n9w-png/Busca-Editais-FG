@@ -187,6 +187,18 @@ def _sem_conferencia(e):
 def _conferencia_parcial(e):
     e["rodadas"][0]["cobertura"]["conferidos"] = 0
 
+def _decidido_no_radar(e):
+    # Contratação direta já fechada: o certame acabou e não há o que pescar.
+    # Este cenário PASSAVA — o edital ficava no arquivo como referência de
+    # mercado. Deixou de passar em 06/09/2026, pela mesma razão que tirou a
+    # inexigibilidade: o radar captura oportunidade, não retrata o passado.
+    e["editais"][0]["disputa"] = "decidido"
+    e["editais"][0]["veredito"] = "frio"
+
+def _encerrado_no_radar(e):
+    e["editais"][0]["disputa"] = "encerrado"
+    e["editais"][0]["veredito"] = "frio"
+
 def _morno_ja_contratado(e):
     # Isto PRECISA passar: contratação decidida é inteligência de mercado
     # legítima, desde que não se venda como oportunidade.
@@ -229,8 +241,11 @@ CASOS = [
     ("auth voltou ao estado", _auth_voltou, True, "voltou a carregar"),
     ("status escrito no estado", _status_no_estado, True, "não pertence ao estado"),
     ("nota escrita no estado", _nota_no_estado, True, "não pertence ao estado"),
-    ("quente numa contratação direta", _quente_ja_contratado, True, "ainda pode disputar"),
-    ("quente com prazo vencido", _quente_com_prazo_vencido, True, "ainda pode disputar"),
+    # Estes dois eram pegos pela regra "quente precisa ser disputável". Agora são
+    # pegos antes, e por uma regra mais larga: não-disputável não fica no radar,
+    # com veredito nenhum. A mensagem mudou; a proteção ficou mais forte.
+    ("quente numa contratação direta", _quente_ja_contratado, True, "certame acabou"),
+    ("quente com prazo vencido", _quente_com_prazo_vencido, True, "certame acabou"),
     ("quente numa inexigibilidade", _quente_em_inexigibilidade, True, "INEXIGIBILIDADE"),
     ("morno numa inexigibilidade", _morno_em_inexigibilidade, True, "INEXIGIBILIDADE"),
     ("frio numa inexigibilidade", _frio_em_inexigibilidade, True, "INEXIGIBILIDADE"),
@@ -238,7 +253,9 @@ CASOS = [
     ("campo disputa ausente", _sem_disputa, True, "disputa"),
     ("situação não conferida na fonte", _sem_conferencia, True, "conferida na fonte"),
     ("conferência não cobriu o radar", _conferencia_parcial, True, "conferidos na fonte"),
-    ("morno já contratado, com vencedor", _morno_ja_contratado, False, "ok"),
+    ("morno já contratado, com vencedor", _morno_ja_contratado, True, "certame acabou"),
+    ("contratação direta no radar", _decidido_no_radar, True, "certame acabou"),
+    ("prazo encerrado no radar", _encerrado_no_radar, True, "certame acabou"),
     ("edital sem veredito", _sem_veredito, True, "veredito"),
     ("quente sem justificativa", _quente_sem_justificativa, True, "sem justificativa"),
     ("id duplicado", _id_duplicado, True, "duplicado"),

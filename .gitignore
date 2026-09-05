@@ -9,3 +9,8 @@ candidatos.json
 
 __pycache__/
 *.pyc
+
+# Checkpoints da rodada: estado intermediário, nunca versionado.
+trabalho/
+vereditos.json
+externas.json

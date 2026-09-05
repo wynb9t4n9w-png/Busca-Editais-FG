@@ -15,6 +15,8 @@ falha que já aconteceu, aqui ou na Pauta Thutor:
              congela na versão de hoje e ninguém percebe
   página     remover a aba administrativa quebrou as outras abas, e o CSS já
              ficou para trás numa publicação sem que nada estourasse
+  vigia      uma varredura rodou 3min45 e terminou "com sucesso" sem publicar
+             nada; nenhum portão reclamou, porque nenhum foi acionado
   espelho    o funil comercial não pode atravessar para a versão pública
 
 O denominador comum é o modo de falha que este projeto teme: o silencioso.
@@ -41,6 +43,8 @@ SUITE = [
      "o portão que impede publicar uma rodada que não aconteceu"),
     ("coleta", ["tools/teste_coleta.py"], True,
      "o contrato com a API do PNCP — o teste contra a falha silenciosa"),
+    ("vigia", ["tools/teste_vigia.py"], False,
+     "o portão que pergunta se a rodada ACONTECEU — os outros só olham o dado"),
     ("aprendizado", ["tools/teste_aprende.py"], False,
      "o que o radar propõe para a próxima versão do filtro"),
     ("página pública", ["tools/teste_pagina.py", "docs/index.html"], False,

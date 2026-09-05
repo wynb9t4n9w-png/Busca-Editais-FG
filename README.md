@@ -358,6 +358,78 @@ CRECI/SC saiu completo — **UFSC, R$ 1,5 milhão** — e junto com ele o IBGC n
 VALEC, o SENAT em Uberlândia, e uma fila de fundações universitárias que é, por
 si só, o retrato de quem concorre com a Thutor neste mercado.
 
+### A rodada que não aconteceu
+
+Em 05/09/2026 a varredura das 02:00 rodou 3 minutos e 45 segundos, terminou com
+status **SUCCEEDED**, e não publicou nada. O radar amanheceu mostrando a véspera.
+Quem descobriu foi uma pessoa abrindo a página.
+
+Nada tinha quebrado. Testado depois, contra o estado daquela manhã: a suíte passa
+em 14 segundos, a coleta traz 5.412 de 5.412 contratações em 222 segundos, e
+`situacao.py`, `fontes_externas.py` e `aprende.py` rodam limpos. O defeito não
+estava em nenhum script — estava na **forma da rodada**, e em duas coisas que eu
+mesmo tinha escrito.
+
+**Primeira: todos os portões perguntavam se o dado estava certo, e nenhum
+perguntava se a rodada tinha acontecido.**
+
+| | |
+|---|---|
+| `valida_rodada.py` | os números batem? a cobertura fecha? o quente é disputável? |
+| `teste_pagina.py` | as abas abrem? vazou campo interno? |
+| `testes.py` | o filtro ainda discrimina? |
+
+Um portão só é acionado por quem chega até ele, e uma rodada que morre no caminho
+nunca chega. Portão nenhum protege contra a ausência. Daí `tools/checa_rodada.py`,
+que lê o estado **publicado** — não o arquivo local, porque publicado é o que a
+equipe abre de manhã — e responde uma pergunta só: existe rodada de hoje, e ela é
+sólida? Dez cenários em `tools/teste_vigia.py`, o primeiro sendo a reprodução
+exata daquele dia.
+
+**Segunda: a rotina das 06:00 detectou a falha e eu a tinha instruído a desistir.**
+O prompt dizia, textualmente: *"a varredura das 02:00 falhou. Não há o que
+reparar: responda com FALHA e termine aqui."* Ela obedeceu. O resumo que a própria
+sessão deixou:
+
+> `repo cloned, push auth verified; artifact stale (04/09 not 05/09)` ·
+> `02:00 scan may have failed — recheck tomorrow 06:00`
+
+Ela tinha o repositório clonado, o push verificado, as ferramentas e duas horas de
+folga — e foi mandada esperar até o dia seguinte. Detectar sem reparar custa o
+mesmo dia que não detectar, e ainda dá a impressão de que existe vigilância. Agora
+ela refaz a rodada inteira.
+
+### A rodada virou dois comandos
+
+A causa mais provável da parada em si — e aqui a evidência é circunstancial, não
+direta, porque o transcript da sessão não é acessível — era o tamanho do trabalho
+manual. Até então o agente lia o artifact (109 KB), rodava a coleta, conferia
+situação, triava, **reescrevia o bloco JSON inteiro à mão**, validava e publicava,
+tudo numa passagem só. A sessão gastou 118 mil tokens de contexto e 12,6 mil de
+saída antes de parar.
+
+Reescrever o estado é a parte mais cara e mais burra do trabalho, ela cresce a
+cada dia que o radar acumula, e é trabalho de máquina sendo feito por quem deveria
+estar julgando editais. Então a rodada foi partida:
+
+```bash
+python3 tools/rodada.py <estado.html>     # suíte, coleta, conferência, fusão
+#   → trabalho/base.json    o estado fundido, que o agente NÃO edita
+#   → trabalho/triagem.json só o que precisa de julgamento
+#   (o agente decide quente/morno/frio e grava vereditos.json)
+python3 tools/monta.py --vereditos vereditos.json --saida busca-editais-fg.html
+```
+
+`rodada.py` **grava checkpoint por fase**: uma interrupção no minuto 3 não repaga
+os 222 segundos de coleta, e deixa arquivo no disco para inspecionar depois — a
+falha de 05/09 não deixou rastro nenhum. `monta.py` aplica os vereditos, recusa
+quente em edital não disputável, recusa quente ou morno sem justificativa, monta
+o HTML a partir do molde do próprio artifact e só devolve o arquivo depois que os
+dois portões passam.
+
+O agente deixou de tocar no estado. Restou-lhe a triagem, que é a única parte que
+precisa de juízo — e a única que justifica ter um agente ali.
+
 ### Valor não elimina
 
 O ticket mínimo é R$ 50.000/mês; seis meses valem R$ 300.000, e é esse o

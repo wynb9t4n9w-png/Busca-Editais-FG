@@ -208,7 +208,7 @@ def relatorio(estado: dict, minimo: int) -> None:
         print()
         print("  Nenhum edital veio da camada 2 em várias rodadas. Ou o Sistema S")
         print("  não está publicando o nosso tema, ou a leitura dos portais não")
-        print("  está funcionando. Confira tools/fontes_externas.py --relatorio")
+        print("  está funcionando. Rode tools/camada2.py e leia as falhas")
         print("  antes de concluir a primeira hipótese.")
     print()
 

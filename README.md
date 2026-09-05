@@ -9,7 +9,7 @@ de onde vieram a arquitetura de duas páginas, o portão de validação e a
 disciplina de nunca deixar uma execução falhar em silêncio. O que mudou, mudou
 por um motivo — e cada motivo está registrado abaixo.
 
-## Auditoria de 06/09/2026 — seis achados e o que foi feito
+## Auditoria de 06/09/2026 — seis achados, todos fechados
 
 Depois de quatro dias de regras acumuladas, uma auditoria com números em vez de
 impressões. Cada achado tem a medição que o produziu.
@@ -74,19 +74,31 @@ score decidir aderência comercial seria pedir a um filtro de palavras que
 substitua julgamento — e o dia em que ele "acertar" sozinho é o dia em que
 ninguém mais confere. Fica registrado para não ser proposto como melhoria.
 
-### 6. O que sobrou como risco conhecido
+### 6. Os riscos que sobraram — e foram fechados no mesmo dia
 
-- **O funil comercial ainda perde histórico.** Um edital marcado "proposta
-  enviada" desaparece quando o certame fecha, e com ele o registro de que
-  disputamos. Hoje o funil está vazio e nada se perdeu. A correção é preservar o
-  que tem marcação, e ela só faz sentido quando a equipe começar a usar.
-- **Três portais do Sistema S continuam fechados** (Senac DN, Sesc DN,
-  Senac-ES): 403 e Cloudflare mesmo com User-Agent de navegador. Precisariam de
-  navegador de verdade, e o rendimento medido no que já abriu não sustenta esse
-  custo.
-- **O Sebrae entra pelo credenciamento, não pelo radar.** Está em
-  `tools/camada2.py` e no que se lê acima: seis licitações abertas no Sistema
-  inteiro, nenhuma aderente, porque consultoria vai toda para o SGF.
+Esta seção começou como "o que fica pendente". Ficou pendente por algumas horas.
+
+- **O funil perdia histórico.** Um edital marcado "proposta enviada"
+  desaparecia quando o certame fechava, e com ele o registro de que a Thutor
+  disputou. **Feito:** a aba Acompanhamento passou a ler também
+  `estado["memoria"]` e resgata de lá todo edital com marcação, sinalizado
+  como *fora do radar*. A memória ganhou o campo `link` para que o cartão
+  resgatado ainda abra o edital. O radar continua mostrando só o que dá para
+  pescar — quem guarda a história é o funil, que é onde ela serve.
+- **Três portais do Sistema S estavam fechados.** Dois abriram: `Sec-Fetch-*`
+  no cabeçalho, e Sesc DN saiu de 403 e Senac-ES saiu de desafio de Cloudflare.
+  Senac DN continua bloqueado — pelo sistema de proteção do próprio Senac, com
+  mensagem explícita, e não por Cloudflare. Fica sondado.
+- **Duas fontes tinham sido julgadas por engano.** SESI-SP/SENAI-SP e o Sistema
+  FIESC estavam anotados como sem serventia a partir da primeira página que
+  responderam. Reinvestigados, os três renderam extrator. A camada 2 passou de
+  6 licitações lidas por noite para 85, e produziu seu primeiro candidato.
+- **`tools/fontes_externas.py` virou código morto** — a camada 2 em código
+  tornou o plano em prosa desnecessário. Removido, com o teste de ordenação
+  substituído por um teste de coerência do cadastro de fontes.
+- **O Sebrae entra pelo credenciamento, não pelo radar.** Continua verdade:
+  seis licitações abertas no Sistema inteiro, nenhuma aderente, porque
+  consultoria vai toda para o SGF. Não é defeito da coleta.
 
 ## O que este projeto não é
 
@@ -241,16 +253,37 @@ A camada 2 deixou de ser tarefa de leitura e virou coleta, em
 `tools/camada2.py`: determinística, testável, e sem depender de alguém
 interpretar uma página.
 
-**O que a investigação portal a portal encontrou:**
+**A investigação foi feita duas vezes, e a segunda desmentiu a primeira.** Na
+primeira passada, seis portais foram anotados como sem serventia. Na segunda,
+quatro deles renderam — porque a anotação tinha sido escrita a partir da
+primeira página que respondeu, e não do que o portal de fato publica. O engano
+fica registrado à vista, aqui e no código, porque ele é a lição:
 
-| | |
-|---|---|
-| **Sebrae — Canal do Fornecedor** | JSON de todo o Sistema. **Funciona**, e está integrado |
-| SESI-SP | abre, mas lista só nomes de PDF sem objeto (`PSDA 532-2026BB.pdf`) |
-| SENAI-SC | publica planilha — de **contratos de 2022**, não de editais abertos |
-| Senac DN · Sesc DN · Senac-ES | 403 e desafio de Cloudflare mesmo com User-Agent de navegador |
-| SENAI-SP · CNI | o proxy de saída recusa a conexão |
-| BEC/SP | a lista fica atrás de formulário de busca |
+| fonte | primeira leitura | o que era de verdade | abertas |
+|---|---|---|---|
+| **Sebrae — Canal do Fornecedor** | JSON do Sistema inteiro | confirmado | 6 |
+| **SESI-SP e SENAI-SP** | "só nomes de PDF sem objeto" | **errado**: cada PDF está dentro de um `<article>` com objeto por extenso e data de abertura das propostas; a partial do site aceita `Tamanho=200` | 57 |
+| **Sistema FIESC (SC)** | "planilha de contratos de 2022" | **errado para a fonte certa**: a mesma página aponta para `transparencia.fiesc.com.br`, que tem `/api/licitacoes/` em JSON paginado | 32 |
+| **Sesc DN** | "HTTP 403" | **errado**: era falta dos cabeçalhos `Sec-Fetch-*`; é WordPress comum, e as abas são três páginas separadas | 15 |
+| **Senac-ES** | "desafio de Cloudflare" | **errado**: mesma causa. Traz os 57 processos do ano, e a data da sessão separa o aberto do encerrado | 1 |
+| Senac DN | HTTP 403 | **confirmado**: bloqueio do sistema de proteção do próprio Senac, com mensagem explícita | — |
+| CNI | proxy recusa | **confirmado**: 502 e tempo esgotado, alternando | — |
+| BEC/SP | atrás de formulário | **confirmado**, e redundante: exige sessão ASP.NET, e o Estado de SP publica no PNCP | — |
+
+De **6 licitações lidas por noite para 85**, e o primeiro candidato que a camada
+2 já produziu (score 43, rede social corporativa no Sistema FIESC) apareceu na
+mesma rodada. Navegador de verdade não é saída aqui: o Chromium desta máquina
+não atravessa o proxy de saída (`ERR_PROXY_CONNECTION_FAILED` na porta do
+ambiente, conexão reinicializada na porta que o proxy declara), e a rotina das
+02:00 roda no mesmo lugar.
+
+Uma segunda descoberta veio junto, e é a que mais protege o radar: **`es.senac.br`
+devolve HTTP 200 para duas coisas que não são a página** — uma leitura curta de
+12 KB de um documento de 739 KB, cortada no meio de um `Transfer-Encoding`
+chunked, e um interstício anti-robô de JavaScript ofuscado que termina em
+`</html>` como qualquer página honesta. As duas viram "a fonte abriu e não tinha
+nenhum edital". Por isso `pega()` exige uma marca do **miolo** da página, nunca
+o fim do arquivo, e repete quando ela não vem.
 
 Os que não rendem continuam sendo sondados toda noite, com uma requisição cada.
 Um portal que hoje devolve 403 pode responder amanhã, e o registro de falhas é o
@@ -281,17 +314,14 @@ evidência. A lista fixa do prompt envelhece; o dossiê não.
 Aqui a mesma ideia opera em dois lugares, e o material é melhor porque a coleta
 é determinística.
 
-**A ordem de visita aprende.** Cada rodada registra em `estado["fontes"]` o que
-aconteceu com cada portal — tentativas, aberturas, candidatos, editais rendidos,
-falhas seguidas. Passando o estado ao script, o plano sai ordenado: quem rende
-vem primeiro, quem não abre há três rodadas vai para o fim. E **continua na
-lista**: portal de licitação passa semanas sem publicar nada do nosso tema, e
-abandonar cedo é como perder cliente por não ligar.
-
-```bash
-python3 tools/fontes_externas.py <estado.html>   # plano ordenado por rendimento
-python3 tools/fontes_externas.py --relatorio <estado.html>
-```
+**A ordem de visita aprendia — e virou desnecessária.** Enquanto a camada 2 era
+uma tarefa de leitura, `tools/fontes_externas.py` ordenava os portais por
+rendimento para o agente visitar os melhores primeiro. Com a coleta em código,
+todas as fontes são visitadas toda noite em quatro segundos cada, e ordenar
+perdeu função: o arquivo foi removido. O que sobrevive dele é o princípio —
+**fonte que não abre continua na lista**, com o motivo por escrito, porque
+portal de licitação passa semanas sem publicar nada do nosso tema e abandonar
+cedo é como perder cliente por não ligar.
 
 **O filtro aprende.** `tools/aprende.py` lê o histórico e propõe o que a
 próxima versão deveria procurar:
@@ -503,7 +533,7 @@ Quem descobriu foi uma pessoa abrindo a página.
 
 Nada tinha quebrado. Testado depois, contra o estado daquela manhã: a suíte passa
 em 14 segundos, a coleta traz 5.412 de 5.412 contratações em 222 segundos, e
-`situacao.py`, `fontes_externas.py` e `aprende.py` rodam limpos. O defeito não
+`situacao.py` e `aprende.py` rodam limpos. O defeito não
 estava em nenhum script — estava na **forma da rodada**, e em duas coisas que eu
 mesmo tinha escrito.
 

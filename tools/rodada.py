@@ -6,9 +6,9 @@ Por que este script existe
 ──────────────────────────
 Em 05/09/2026 a varredura das 02:00 rodou 3 minutos e 45 segundos, terminou com
 status de sucesso e não publicou nada. Nenhum script quebrou: a suíte passa, a
-coleta traz 5.412 de 5.412 contratações em 222 segundos, situacao.py, aprende.py
-e fontes_externas.py rodam limpos contra o estado do dia. O que falhou foi a
-FORMA da rodada.
+coleta traz 5.412 de 5.412 contratações em 222 segundos, e situacao.py e
+aprende.py rodam limpos contra o estado do dia. O que falhou foi a FORMA da
+rodada.
 
 Até aqui a rodada era um procedimento em prosa de dez passos, e o agente
 executava tudo numa única passagem: ler o artifact (109 KB), rodar a coleta,
@@ -82,9 +82,12 @@ MAX_RODADAS = 30
 # tem veredito exibido, não conta como oportunidade e não pode ser confundida
 # com uma. É o caderno do filtro, e só o aprendizado a lê.
 MAX_MEMORIA = 3000
+# "link" está aqui por causa do funil: um edital marcado "proposta enviada"
+# sai do radar no dia em que o certame fecha, e a aba Acompanhamento o resgata
+# da memória. Sem o link, o cartão resgatado não teria como abrir o edital.
 CAMPOS_MEMORIA = ("id", "orgao", "cnpj", "uf", "municipio", "modalidade",
                   "objeto", "valor", "publicado_em", "encerramento",
-                  "veredito", "score", "frentes", "vencedor")
+                  "veredito", "score", "frentes", "vencedor", "link")
 SCORE_MINIMO_FRIO = 30      # frio abaixo disto não entra: conta e some
 
 # O radar guarda só o que ainda dá para pescar. Decidido, encerrado e cancelado
@@ -364,10 +367,25 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     ATUALIZA = ("valor", "encerramento", "abertura", "situacao", "score",
                 "frentes", "objeto", "complemento", "modalidade")
 
+    def atualiza(alvo: dict, novo: dict) -> None:
+        for k in ATUALIZA:
+            if k not in novo:
+                continue
+            # O objeto NUNCA encurta. As duas varreduras devolvem o mesmo edital
+            # com comprimentos diferentes — /publicacao manda o resumo,
+            # /proposta o texto inteiro — e a ordem em que chegam é acidente de
+            # implementação. Deixar o último sobrescrever significaria que a nota
+            # de um edital depende de qual endpoint respondeu primeiro, que foi
+            # exatamente o defeito do SAAE de Lagoa da Prata: 52 pelo resumo, 78
+            # pelo completo.
+            if k == "objeto" and len(novo[k] or "") < len(alvo.get(k) or ""):
+                continue
+            alvo[k] = novo[k]
+
     novos = []
     for c in r["candidatos"]:
         if c["id"] in editais:
-            editais[c["id"]].update({k: c[k] for k in ATUALIZA if k in c})
+            atualiza(editais[c["id"]], c)
         else:
             c = dict(c)
             c["visto_em"] = dia

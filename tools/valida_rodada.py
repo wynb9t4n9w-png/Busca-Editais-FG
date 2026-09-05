@@ -197,8 +197,8 @@ def valida_externas(e: dict) -> None:
         falha("cobertura.externas.tentadas ausente ou não é inteiro.")
     elif tentadas < 8:
         falha(
-            f"apenas {tentadas} fontes externas visitadas. O registro em "
-            "tools/fontes_externas.py tem 15; visite todas, e anote as que não "
+            f"apenas {tentadas} fontes externas visitadas. tools/camada2.py "
+            "cadastra mais do que isso; rode-o inteiro, e deixe as que não "
             "abriram em cobertura.externas.falhas em vez de pulá-las calado."
         )
     abertas = e.get("abertas")

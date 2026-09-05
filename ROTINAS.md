@@ -56,8 +56,10 @@ outro, e cada uma deixa arquivo no disco.
 > cd /home/user/Busca-Editais-FG      # clone se faltar; leitura funciona
 > python3 tools/rodada.py <caminho do HTML do artifact>
 > ```
-> Um comando faz suíte, **as duas varreduras do PNCP**, conferência item a item
-> na fonte, e a fusão com o estado anterior. Ele **para com `FALHA:` e código
+> Um comando faz seis fases: suíte, **as duas varreduras do PNCP**, a camada 2,
+> conferência item a item na fonte, e a fusão com o estado anterior — que
+> deduplica as publicações da mesma disputa e guarda tudo na memória antes de
+> cortar o que já não dá para pescar. Ele **para com `FALHA:` e código
 > diferente de zero** em qualquer problema, e a mensagem diz o que fazer. Leia a
 > saída inteira.
 >
@@ -72,29 +74,36 @@ outro, e cada uma deixa arquivo no disco.
 > rajada. **Ele retoma do checkpoint** — a coleta que já deu certo não é repetida.
 >
 > Saem dois arquivos em `trabalho/`: `base.json` (o estado fundido, que você NÃO
-> edita) e `triagem.json` (o que espera julgamento).
+> edita) e `triagem.json` (o que espera julgamento). Só precisam de veredito os
+> que ainda não têm um; os demais vêm decididos de rodadas anteriores.
 >
 > ### PASSO 3 — Camada 2 (já vem no PASSO 2)
 > `tools/rodada.py` roda `tools/camada2.py` sozinho: ele busca as fontes fora do
-> PNCP por código, com User-Agent de navegador, e devolve os candidatos junto
-> com os do PNCP. Você **não precisa** visitar portal nenhum com WebFetch.
+> PNCP por código, com cabeçalho completo de navegador, e devolve os candidatos
+> junto com os do PNCP. Você **não precisa** visitar portal nenhum com WebFetch.
 >
 > Isso mudou em 06/09/2026. Antes era um plano em prosa com quinze portais para
 > o agente visitar, e rendeu zero candidatos em três rodadas — metade devolvendo
-> 403. O 403 era bloqueio de User-Agent, não política de robô; com o cabeçalho
-> certo, o Canal do Fornecedor do Sebrae devolve JSON com as licitações abertas
-> de todo o Sistema.
+> 403. O 403 não era política de robô: faltavam os cabeçalhos `Sec-Fetch-*`. Com
+> eles, seis fontes abriram e a camada passou de 6 licitações lidas por noite
+> para 85 — Sebrae (Sistema inteiro), Sesc DN, Senac-ES, Sistema FIESC, SESI-SP
+> e SENAI-SP. Senac DN e CNI continuam fechados, e ficam sondados.
 >
 > A saída da fase informa quantas fontes abriram e por que as outras não. Se uma
 > fonte que costumava abrir passar a falhar, **diga no relatório** — é assim que
 > se descobre que um portal mudou de endereço.
+>
+> Duas anotações do registro estavam erradas e custaram semanas de fonte fechada
+> à toa: SESI-SP e o Sistema FIESC tinham sido julgados pela primeira página que
+> responderam. Se você for anotar uma fonte como sem serventia, **anote a prova**,
+> não a impressão.
 >
 > Se você encontrar por conta própria um edital aderente numa plataforma fora do
 > registro, cite no relatório final com a URL. Fonte nova é o jeito mais barato
 > de o radar crescer, e quem a acrescenta a `tools/camada2.py` é uma pessoa.
 >
 > ### PASSO 4 — Triagem (a sua parte)
-> Leia `trabalho/triagem.json`. Para cada item, um veredito:
+> Leia `trabalho/triagem.json`. Para cada item sem veredito, um veredito:
 >
 > - `quente` — aderência direta ao portfólio, `disputa` em `aberto`/`relicita`/
 >   `indeterminado`, porte compatível com o ticket (R$ 50 mil/mês; 6 meses =
@@ -139,7 +148,7 @@ outro, e cada uma deixa arquivo no disco.
 >
 > ### PASSO 5 — Montar e validar
 > ```
-> python3 tools/monta.py --vereditos vereditos.json --externas externas.json \
+> python3 tools/monta.py --trabalho trabalho --vereditos vereditos.json \
 >     --saida busca-editais-fg.html
 > ```
 > Ele aplica os vereditos, monta o HTML a partir do molde do próprio artifact,
@@ -168,7 +177,10 @@ outro, e cada uma deixa arquivo no disco.
 > python3 tools/aprende.py busca-editais-fg.html
 > ```
 > Propõe órgãos que voltaram a comprar, palavras que discriminaram os bons e
-> ainda não estão no léxico, ruído que merece veto, e quem está ganhando.
+> ainda não estão no léxico, ruído que merece veto, e quem está ganhando. Ele lê
+> a **memória**, não o radar: o radar guarda só o que ainda dá para disputar, e
+> aprender só com ele seria comparar os últimos três dias contra os últimos três
+> dias para sempre.
 >
 > **NÃO APLIQUE NADA AUTOMATICAMENTE.** Um filtro que se reescreve sozinho é um
 > filtro que ninguém audita depois. Leve as 2 ou 3 propostas mais fortes para o
@@ -178,9 +190,10 @@ outro, e cada uma deixa arquivo no disco.
 > Em português, no máximo 10 linhas: contratações do PNCP e se a conta fechou;
 > fontes externas visitadas/abertas e qual rendeu; candidatos, triados,
 > conferidos; quentes e mornos, com objeto e valor de cada quente; quantos
-> `relicita`; quantos fecham prazo em 7 dias; quantos candidatos **só a
-> varredura por prazo aberto enxergou**; quantas inexigibilidades e quantas
-> disputas encerradas saíram; duração; e o link do artifact.
+> `relicita`; quantos fecham prazo em 3 dias (a faixa de urgência do topo do
+> Radar); quantos candidatos **só a varredura por prazo aberto enxergou**;
+> quantas inexigibilidades, quantas disputas encerradas e quantas publicações
+> duplicadas saíram; duração; e o link do artifact.
 >
 > Feche com DUAS LINHAS do PASSO 8: a proposta mais forte de termo ou veto, e
 > qualquer órgão que voltou a comprar.

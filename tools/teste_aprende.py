@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import aprende  # noqa: E402
-import fontes_externas as fe  # noqa: E402
+import camada2  # noqa: E402
 
 
 def edital(i, veredito, objeto, orgao="ORGAO X", uf="SP", **extra):
@@ -88,32 +88,31 @@ def main() -> None:
         if not ok:
             falhas.append(nome)
 
-    print("\n--- o plano ordena pelo que rendeu ---")
-    plano = saida_de(fe.plano, ESTADO)
-    pos_senar = plano.find("Senar")
-    pos_scf = plano.find("Canal do Fornecedor")
-    pos_sesc = plano.find("Sesc — Departamento")
-    ordem_ok = 0 < pos_senar < pos_sesc and pos_scf > pos_senar
-    print(f"  {'ok ' if ordem_ok else 'ERRO'} quem rende vem antes de quem só abre, "
-          "e quem não abre vai para o fim")
-    if not ordem_ok:
-        falhas.append(f"ordem errada: senar={pos_senar}, sesc={pos_sesc}, scf={pos_scf}")
-
-    some = "NÃO ABRE HÁ 6 RODADAS" in plano
-    print(f"  {'ok ' if some else 'ERRO'} marca a fonte que não abre há várias rodadas")
-    if not some:
-        falhas.append("não marcou a fonte quebrada")
-
-    continua = pos_scf > 0
-    print(f"  {'ok ' if continua else 'ERRO'} a fonte quebrada CONTINUA na lista")
-    if not continua:
-        falhas.append("fonte quebrada sumiu do plano — abandonar cedo perde edital")
+    # A camada 2 já foi um plano em prosa que um agente lia e visitava a mão.
+    # Hoje é código, e o que precisa ser verdade mudou junto: não "a ordem da
+    # lista está certa", e sim "o cadastro de fontes é coerente". Uma fonte com
+    # id repetido sobrescreve a outra no registro de cobertura e some sem avisar
+    # — que é a forma que este projeto mais teme.
+    print("\n--- o cadastro de fontes da camada 2 é coerente ---")
+    ids = [i for i, _, _, _ in camada2.SONDAS]
+    reais = len(camada2.FONTES) - len(camada2.SONDAS)
+    conf = [
+        ("nenhuma sonda com id repetido", len(ids) == len(set(ids))),
+        ("toda sonda diz por escrito por que não rende",
+         all(len(nota) > 30 for _, _, _, nota in camada2.SONDAS)),
+        ("toda sonda aponta para um endereço https",
+         all(u.startswith("https://") for _, _, u, _ in camada2.SONDAS)),
+        ("há mais extrator de verdade do que sonda", reais > len(camada2.SONDAS)),
+    ]
+    for nome, ok in conf:
+        print(f"  {'ok ' if ok else 'ERRO'} {nome}")
+        if not ok:
+            falhas.append(nome)
 
     print("\n--- histórico vazio não quebra nada ---")
     try:
         saida_de(aprende.relatorio, {"editais": [], "rodadas": []}, 2)
-        saida_de(fe.plano, None)
-        print("  ok  radar vazio e plano sem estado passam sem erro")
+        print("  ok  radar vazio passa sem erro")
     except Exception as e:
         print(f"  ERRO {e}")
         falhas.append(f"quebra com histórico vazio: {e}")
@@ -124,8 +123,8 @@ def main() -> None:
         for f in falhas:
             print(f"  - {f}")
         raise SystemExit(1)
-    print("ok  o radar propõe o termo certo, veta o ruído certo, e visita primeiro "
-          "quem rende.")
+    print("ok  o radar propõe o termo certo, veta o ruído certo, e o cadastro "
+          "da camada 2 fecha.")
 
 
 if __name__ == "__main__":

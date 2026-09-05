@@ -488,6 +488,42 @@ dois portões passam.
 O agente deixou de tocar no estado. Restou-lhe a triagem, que é a única parte que
 precisa de juízo — e a única que justifica ter um agente ali.
 
+### Um veto não aniquila evidência forte
+
+O veto existe para matar o que só *parece* aderente por uma palavra solta — a
+retroescavadeira comprada "para atender ao planejamento estratégico". Mas ele
+era um **ou** contra um **e**: bastava uma frase em qualquer ponto do texto para
+zerar tudo. E quanto mais longo e detalhado o objeto, maior a chance de alguma
+frase infeliz aparecer — sendo que editais bons são justamente os longos e
+detalhados.
+
+O caso: SAAE de Lagoa da Prata/MG, consultoria organizacional para reformular o
+Plano de Cargos, Carreiras e Salários. O texto traz **"plano de cargos"**,
+**"matriz de competência"** e **"descrição de cargos"**. Score zero — porque
+2.400 caracteres adiante a metodologia prometia *"transparência, participação
+dos servidores, equidade"*, e isso dispara o veto de `apoio financeiro para
+participação`, que existe para custeio de inscrição em congresso.
+
+Pior que o falso negativo: **o mesmo edital valia 52 ou 0 conforme o endpoint
+que o trouxesse.** `/publicacao` devolve o objeto curto, `/proposta` devolve o
+completo. Uma nota que depende de por onde o dado entrou não é uma nota.
+
+A regra agora é: a partir de **dois termos de núcleo**, o veto não zera. O corte
+foi medido, não arbitrado — sobre 28.014 contratações com prazo aberto, com dois
+núcleos exatamente **um** registro volta, o de Lagoa da Prata, com três. Ruído
+zero. Com um núcleo voltariam seis, e aí a fronteira fica discutível.
+
+O caso está fixado em `tools/teste_perfil.py`, com o texto que o produziu.
+
+### A ampliação que a medição desaconselhou
+
+A hipótese era que 60 dias de janela na varredura por prazo aberto fossem
+pouco, e que 90 trariam mais. Medido: **96 aderentes em 90 dias contra 94 em
+60**, e os dois extras são falso positivo — um credenciamento de engenharia e
+um "fomento à modernização administrativa". Não houve mudança: a janela usual
+de proposta é de 15 a 45 dias e cabe folgada em 60. Fica registrado para não
+ser proposto de novo.
+
 ### Valor não elimina
 
 O ticket mínimo é R$ 50.000/mês; seis meses valem R$ 300.000, e é esse o

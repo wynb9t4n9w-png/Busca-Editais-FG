@@ -280,6 +280,11 @@ PONTOS_MODALIDADE = {
 
 LIMIAR_CANDIDATO = 14  # abaixo disto não vale nem o parágrafo de triagem
 
+# A partir de quantos termos de núcleo a evidência temática vence um veto.
+# Ver a nota extensa em avalia(): dois é o ponto medido em que só o caso
+# legítimo volta, sem trazer ruído junto.
+NUCLEOS_QUE_VENCEM_VETO = 2
+
 
 def normaliza(texto: str | None) -> str:
     """Minúsculo, sem acento, espaços colapsados — a forma em que o léxico vive."""
@@ -351,10 +356,39 @@ def avalia(objeto: str, valor: float | None = None, modalidade: str | None = Non
     tem_nucleo = any("nucleo" in d for d in achados.values())
     sustenta = tem_nucleo or len(frentes_apoio) >= 2
 
-    score = 0 if (veto or not sustenta) else min(100, tema + pv + pm)
+    # Um veto NÃO aniquila quando o objeto traz evidência forte de núcleo.
+    #
+    # O veto existe para matar o que só PARECE aderente por uma palavra solta —
+    # a retroescavadeira comprada "para atender ao planejamento estratégico".
+    # Mas ele é um "ou" contra um "e": basta uma frase em qualquer ponto do
+    # texto para zerar tudo, e quanto mais longo e detalhado o objeto, maior a
+    # chance de alguma frase infeliz aparecer. Editais bons são justamente os
+    # longos e detalhados.
+    #
+    # Foi assim que o SAAE de Lagoa da Prata/MG quase sumiu: consultoria
+    # organizacional para reformular o Plano de Cargos, Carreiras e Salários,
+    # com "plano de cargos", "matriz de competência" e "descrição de cargos" no
+    # texto — vetado porque, 2.400 caracteres adiante, a metodologia prometia
+    # "transparência, participação dos servidores, equidade". A frase disparou o
+    # veto de "apoio financeiro para participação", que existe para custeio de
+    # inscrição em congresso.
+    #
+    # Pior: o MESMO edital pontuava 52 ou 0 conforme o endpoint que o trouxesse,
+    # porque /publicacao devolve o objeto curto e /proposta devolve o completo.
+    #
+    # Medido sobre 28.014 contratações com prazo aberto: com o corte em dois
+    # termos de núcleo, exatamente UM registro volta — o de Lagoa da Prata, com
+    # três núcleos. Zero ruído. Um núcleo só devolveria seis, e aí a fronteira
+    # começa a ficar discutível; dois é onde a evidência é inequívoca.
+    nucleos = sum(len(d["nucleo"]) for d in achados.values() if "nucleo" in d)
+    veto_vale = veto and nucleos < NUCLEOS_QUE_VENCEM_VETO
+
+    score = 0 if (veto_vale or not sustenta) else min(100, tema + pv + pm)
 
     return {
         "score": score,
+        "veto": veto,
+        "veto_vencido": bool(veto and not veto_vale),
         "tema": tema,
         "pontos_valor": pv,
         "pontos_modalidade": pm,

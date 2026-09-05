@@ -24,6 +24,24 @@ from perfil import avalia, _confere_delimitadores  # noqa: E402
 
 # (objeto, valor, modalidade, por que importa)
 OURO = [
+    # O caso que provou que um veto não pode aniquilar evidência forte de núcleo.
+    # Consultoria organizacional para reformular o PCCS do SAAE de Lagoa da
+    # Prata/MG: "plano de cargos", "matriz de competência" e "descrição de
+    # cargos" no texto, e mesmo assim score ZERO — porque 2.400 caracteres
+    # adiante a metodologia prometia "transparência, participação dos
+    # servidores, equidade", disparando o veto de "apoio financeiro para
+    # participação", feito para custeio de inscrição em congresso.
+    # Pior: o mesmo edital valia 52 ou 0 conforme o endpoint que o trouxesse,
+    # porque /publicacao devolve o objeto curto e /proposta o completo.
+    ("Prestação de serviços técnicos em consultoria organizacional, visando à "
+     "reformulação do Plano de Cargos, Carreiras e Salários (PCCS) do Serviço "
+     "Autônomo de Água e Esgoto, abrangendo diagnóstico, matriz de competência "
+     "e descrição de cargos. A metodologia deverá ser clara e compatível com os "
+     "princípios da administração pública: transparência, participação dos "
+     "servidores, equidade e sustentabilidade financeira.",
+     112_386, "Pregão - Eletrônico",
+     "veto de custeio de evento não pode matar três termos de núcleo"),
+
     ("Contratação de instituição especializada para desenvolvimento e implementação "
      "da Universidade Corporativa em Rede do Conselho Regional de Corretores de "
      "Imóveis de Santa Catarina – UniCRECI em Rede, contemplando planejamento "

@@ -111,9 +111,19 @@ def confere(estado: dict, dia: str, tolerancia_horas: float) -> None:
         falha(f"a rodada de {dia} não tem 'concluido_em'. Ela foi registrada "
               "antes de terminar — provavelmente publicada no meio do caminho.")
 
-    if (c.get("triados") or 0) < (p.get("candidatos") or 0):
+    # O denominador é `triaveis`: quantos candidatos desta rodada chegaram ao
+    # radar e portanto podiam receber veredito. Um candidato que a conferência
+    # na fonte revelou encerrado sai na fusão e não existe mais para ser lido —
+    # cobrá-lo reprova uma rodada correta. Mesma correção feita em
+    # valida_rodada.py em 06/09/2026, e este vigia ficou para trás por um
+    # turno: foi o PASSO 7 novo, que confere o artifact publicado em vez do
+    # arquivo local, que expôs a diferença.
+    alvo = c.get("triaveis")
+    if not isinstance(alvo, int):
+        alvo = p.get("candidatos") or 0
+    if (c.get("triados") or 0) < alvo:
         falha(f"a rodada de {dia} triou {c.get('triados') or 0} de "
-              f"{p.get('candidatos') or 0} candidatos. Um candidato não lido "
+              f"{alvo} candidatos. Um candidato não lido "
               "pode ser o contrato do ano.")
 
     # O carimbo do cabeçalho vem de atualizado_em, e é o que a equipe vê. Se ele

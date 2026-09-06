@@ -108,6 +108,72 @@ Esta seção começou como "o que fica pendente". Ficou pendente por algumas hor
   seis licitações abertas no Sistema inteiro, nenhuma aderente, porque
   consultoria vai toda para o SGF. Não é defeito da coleta.
 
+## O incidente de 06/09/2026 — o domingo
+
+A varredura das 02:00 rodou 49 minutos, terminou com status de sucesso e não
+publicou nada, pela segunda vez em dois dias. O espelho público estava fiel ao
+artifact; os dois estavam parados na véspera.
+
+**A causa raiz é uma linha de calendário.** A varredura por publicação
+perguntava ao PNCP sobre a janela ontem→hoje. Medido no mesmo instante:
+
+```
+05/09..05/09 (sábado)     HTTP 204
+05/09..06/09 (sáb+dom)    HTTP 204
+04/09..05/09 (sex+sáb)    HTTP 200
+03/09..06/09              HTTP 200, 3.227 registros só no pregão
+```
+
+Órgão público não publica edital em fim de semana. Todo domingo — e toda
+segunda de madrugada — a janela de um dia caía sobre dois dias em que ninguém
+trabalhou, a coleta voltava zerada, e o validador, corretamente, recusava a
+rodada inteira. Não era defeito do PNCP nem da coleta: era a pergunta errada.
+
+**Feito:** a janela passou a olhar três dias para trás. Sempre alcança um dia
+útil, inclusive depois de feriado emendado, e reencontrar edital já visto não
+custa nada porque a fusão é por id. O efeito colateral é o que mais vale: com
+três dias, uma varredura zerada deixa de ser ambígua — ou o PNCP caiu, ou a API
+mudou, nunca "foi domingo".
+
+O mesmo ponto cego estava em `tools/teste_coleta.py`, que conferia o formato da
+API contra "ontem" e reprovava a suíte inteira aos domingos. Agora usa o último
+dia útil.
+
+### Quatro defeitos que o incidente revelou de carona
+
+- **O vigia conferia o arquivo errado.** `checa_rodada.py` nasceu depois de
+  05/09 para responder "a rodada entrou no ar?", e a rotina o rodava sobre
+  `busca-editais-fg.html` — o arquivo que o próprio agente acabara de montar.
+  Ele aprova com a publicação nunca tendo acontecido. Agora o PASSO 7 relê o
+  artifact e roda o vigia sobre o que voltou. Foi essa mudança que expôs os
+  dois defeitos seguintes no mesmo dia.
+- **A fase 5 escrevia o checkpoint só no fim.** O comentário dizia "checkpoint
+  por edital"; ele *lia* por edital e *gravava* em bloco. Interrompida no item
+  99 de 103, perdia as 99 consultas de rede — meia hora. Agora grava a cada dez.
+- **O portão cobrava veredito de edital que não existe mais.** O denominador
+  era "candidatos colhidos"; a conferência na fonte revela alguns já encerrados
+  e a fusão os remove. 37 colhidos, 6 removidos, portão fechado sem ter o que
+  fazer. Passou a ser `triaveis` — os candidatos desta rodada que chegaram ao
+  radar. A garantia é a mesma: nada que chegou à tela passou sem alguém ler.
+- **Uma publicação recusada morria calada.** O prompt não dizia o que fazer se
+  o PASSO 6 falhasse, e a sessão ia dormir com a rodada pronta no disco. Agora
+  a resposta começa com `FALHA:` — e a rotina tem notificação por push, então
+  uma FALHA chega a alguém.
+
+### O que ainda não está resolvido
+
+A rotina de resgate das 06:00 relatou, no próprio painel, "scan complete &
+validated (72 editais); **publish blocked by permissions**". Ela fez a rodada
+inteira e travou na publicação. Nenhuma ferramenta desta sessão consegue
+conceder permissão a um gatilho — `create_trigger` e `update_trigger` não
+expõem lista de ferramentas permitidas. É decisão de quem administra a conta.
+
+E há um agravante estrutural: a rotina das 06:00 está presa a uma conversa fixa
+(é o que lhe dá permissão de push no repositório), e gatilhos presos a sessão
+**não aceitam notificação de conclusão**. Ou seja: a rede de segurança não
+consegue avisar que ela mesma falhou. Quem avisa é a das 02:00, que é de sessão
+nova e tem push ligado.
+
 ## O que este projeto não é
 
 Não é um clipping. A Pauta Thutor procura notícia com `WebSearch`, e para

@@ -43,8 +43,12 @@ outro, e cada uma deixa arquivo no disco.
 > Dia sem nada quente é resultado legítimo. O que não se aceita é oportunidade
 > inventada para encher a tela, nem oportunidade verdadeira que passou batido.
 >
-> **Orçamento:** você começa 02:00, ninguém abre antes das 08:00. A coleta leva
-> ~4 minutos, a conferência na fonte mais alguns. Vá até o fim.
+> **Orçamento:** você começa 02:00, ninguém abre antes das 08:00 — são seis
+> horas. A rodada determinística leva de **30 a 45 minutos**, e a maior parte
+> disso é a fase 5, que faz uma consulta ao PNCP por edital, com pausa entre
+> elas. Não é travamento: é o preço de perguntar à fonte em vez de adivinhar, e
+> a fase grava no disco a cada dez editais, então nada se perde se ela for
+> interrompida. **Vá até o fim.**
 >
 > ### PASSO 1 — Ler o estado
 > Artifact com `action:"read"` na URL acima. **GUARDE O CAMINHO** do HTML salvo —
@@ -165,12 +169,28 @@ outro, e cada uma deixa arquivo no disco.
 > (`db`, com a regra do acompanhamento). Declaração errada revoga o banco e apaga
 > o acesso da equipe ao funil. Também não passe `favicon` nem `title`.
 >
+> **Se a publicação for RECUSADA** — por permissão, por conflito de versão, por
+> qualquer motivo —, **não termine em silêncio**. Responda com a PRIMEIRA LINHA
+> sendo `FALHA: rodada pronta e NÃO publicada`, cole o motivo exato que a
+> ferramenta devolveu, e diga que o HTML validado está em
+> `busca-editais-fg.html`. Esta rotina tem notificação por push: uma resposta
+> que começa com FALHA chega a alguém. Uma sessão que vai dormir calada, não —
+> e foi isso que aconteceu em 05/09 e de novo em 06/09, as duas vezes com a
+> rodada inteira feita e validada, morrendo na última linha.
+>
 > ### PASSO 7 — Conferir que entrou mesmo
+> Leia o artifact **de novo** com `action:"read"` e rode o vigia sobre o arquivo
+> que voltou dessa leitura — não sobre o seu:
 > ```
-> python3 tools/checa_rodada.py busca-editais-fg.html
+> python3 tools/checa_rodada.py <html que a releitura do artifact salvou>
 > ```
-> Publicar e confiar foi exatamente o que falhou em 05/09. Se este comando
-> reprovar, você não terminou.
+> Rodar sobre `busca-editais-fg.html` não prova nada: esse arquivo é o que VOCÊ
+> montou, e ele passa no vigia mesmo que a publicação tenha sido recusada. Foi
+> assim que o vigia criado depois de 05/09 deixou 06/09 passar. O que precisa
+> ser conferido é o que está no ar.
+>
+> Se o vigia reprovar a releitura, a publicação não aconteceu: volte ao PASSO 6
+> e, se ela continuar recusada, responda com `FALHA:` como acima.
 >
 > ### PASSO 8 — O que o radar aprendeu
 > ```

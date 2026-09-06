@@ -92,11 +92,25 @@ def busca(modalidade: int, dia: str, tam: int = 10) -> tuple[dict | None, str]:
     return None, ultimo
 
 
+def ultimo_dia_util(hoje) -> "datetime.date":
+    """O dia útil mais recente antes de hoje. Sábado e domingo não contam."""
+    d = hoje - timedelta(days=1)
+    while d.weekday() >= 5:          # 5 = sábado, 6 = domingo
+        d -= timedelta(days=1)
+    return d
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", help="AAAAMMDD; padrão: ontem")
     a = ap.parse_args()
-    dia = a.data or (datetime.now(TZ).date() - timedelta(days=1)).strftime("%Y%m%d")
+    # "Ontem" não serve como padrão: num domingo, ontem é sábado, o PNCP
+    # devolve 204 sem envelope, e o teste reprova a API por um dia em que
+    # ninguém publicou. Foi o que aconteceu em 06/09/2026 e derrubou a suíte
+    # inteira. O padrão passa a ser o último dia ÚTIL — sexta, quando hoje é
+    # domingo ou segunda —, que é a única data em que a pergunta "a API ainda
+    # responde como antes?" tem resposta.
+    dia = a.data or ultimo_dia_util(datetime.now(TZ).date()).strftime("%Y%m%d")
 
     falhas: list[str] = []
     print(f"--- conversando com o PNCP sobre {dia} ---")

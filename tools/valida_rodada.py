@@ -394,15 +394,29 @@ def valida(estado: dict) -> None:
                 "ela escondeu dois editais ainda disputáveis como se já tivessem dono."
             )
 
+        # O denominador é quantos candidatos DESTA rodada chegaram ao radar, não
+        # quantos foram colhidos. Um candidato que a conferência na fonte revelou
+        # encerrado é removido na fusão e não existe mais para receber veredito;
+        # cobrá-lo trava a rodada por um trabalho impossível, e foi o que
+        # aconteceu em 06/09/2026 — 37 colhidos, 6 removidos, portão fechado sem
+        # ter o que fazer. A garantia continua a mesma: nada que chegou à tela
+        # passou sem alguém ler.
+        #
+        # `triaveis` só existe a partir de rodada.py de 06/09; sem ele, cai no
+        # número antigo, que é conservador na direção segura.
+        alvo = cob.get("triaveis")
+        if not isinstance(alvo, int):
+            alvo = cands
         triados = cob.get("triados")
         if not isinstance(triados, int):
             falha("cobertura.triados ausente. Registre quantos candidatos passaram "
                   "pela triagem.")
-        elif triados < cands:
+        elif triados < alvo:
             falha(
-                f"{cands} candidatos foram colhidos e só {triados} triados. "
-                f"Os {cands - triados} restantes não foram nem lidos — e um deles "
-                "pode ser o contrato do ano. Volte e termine a triagem."
+                f"{alvo} candidatos desta rodada estão no radar e só {triados} "
+                f"foram triados. Os {alvo - triados} restantes não foram nem "
+                "lidos — e um deles pode ser o contrato do ano. Volte e termine "
+                "a triagem."
             )
 
     # O histórico por fonte é o que faz a camada 2 melhorar sozinha: ele decide

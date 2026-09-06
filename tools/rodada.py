@@ -103,6 +103,15 @@ DISPUTAVEL = ("aberto", "indeterminado", "relicita")
 # "inexigiveis_descartados".
 VERSAO_CHECKPOINT = 3
 
+# De quantos em quantos editais a conferência vai para o disco. Dez é uma
+# gravação a cada ~20 segundos: barato o bastante para não pesar, frequente o
+# bastante para que uma interrupção custe segundos em vez de meia hora.
+GRAVA_A_CADA = 10
+
+# Quantos dias para trás a varredura por publicação olha. Ver a nota extensa
+# em fase_coleta(): com um dia só, todo domingo a rodada morria.
+DIAS_PUBLICACAO = 3
+
 
 # ───────────────────────── checkpoint ─────────────────────────
 # Cada fase grava o que produziu. Uma rodada interrompida no minuto 3 não repaga
@@ -164,9 +173,31 @@ def fase_coleta(t: Trabalho) -> dict:
     g = t.guardado("coleta")
     if g:
         return g
-    ontem = (datetime.now(TZ) - timedelta(days=1)).strftime("%Y%m%d")
+    # A janela olha DIAS_PUBLICACAO dias para trás, não um.
+    #
+    # Ela era ontem→hoje, e isso tinha um buraco semanal. Em 06/09/2026, um
+    # domingo, a varredura devolveu ZERO em onze modalidades, zero páginas e
+    # zero erros — e o validador, com razão, recusou a rodada inteira. Medido
+    # no mesmo instante:
+    #
+    #     05/09..05/09 (sábado)      HTTP 204
+    #     05/09..06/09 (sáb+dom)     HTTP 204
+    #     04/09..05/09 (sex+sáb)     HTTP 200
+    #     03/09..06/09               HTTP 200, 3.227 registros só no pregão
+    #
+    # Órgão público não publica edital em fim de semana. Com a janela de um
+    # dia, todo domingo e toda segunda de madrugada a rodada morria — não por
+    # defeito do PNCP, mas por perguntar a ele sobre dois dias em que ninguém
+    # trabalha. Três dias sempre alcançam um dia útil, inclusive depois de
+    # feriado emendado, e reencontrar edital já visto não custa nada: a fusão
+    # é por id.
+    #
+    # E o efeito colateral é o que interessa: com três dias, uma varredura que
+    # volta zerada não é mais ambígua. Ou o PNCP caiu, ou a API mudou — nunca
+    # "foi domingo". O portão do validador passa a acusar só falha de verdade.
+    inicio = (datetime.now(TZ) - timedelta(days=DIAS_PUBLICACAO)).strftime("%Y%m%d")
     hoje = datetime.now(TZ).strftime("%Y%m%d")
-    r = coleta(ontem, hoje, 0)
+    r = coleta(inicio, hoje, 0)
     c = r["cobertura"]
     print(f"    {c['brutos']:,} de {c['esperados']:,} contratações · "
           f"{c['candidatos']} candidatos · "
@@ -239,6 +270,13 @@ def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
     # o cache da conferência era do conjunto antigo, e o edital entrou no radar
     # SEM situacao_item — pego pelo validador, mas só depois de montar a página.
     # Conferir o que falta é tão barato quanto e não tem esse buraco.
+    #
+    # E ele é GRAVADO a cada poucos editais, não no fim. A versão anterior lia
+    # por edital e escrevia em bloco, o que dava o pior dos dois mundos: em
+    # 06/09/2026 esta fase foi interrompida no item 99 de 103 e as 99 consultas
+    # de rede foram perdidas inteiras, porque nada tinha chegado ao disco. Esta
+    # é a fase mais cara da rodada — 100 editais, uma consulta cada, com pausa
+    # entre elas — e a única em que "recomeçar do zero" custa meia hora.
     achados: dict[str, dict] = dict(t.guardado("situacao") or {})
     faltam = [e for e in alvos if e["id"] not in achados]
     print(f"[5/6] conferindo {len(faltam)} de {len(alvos)} editais no PNCP "
@@ -251,7 +289,8 @@ def fase_situacao(t: Trabalho, alvos: list[dict]) -> dict:
         achados[e["id"]] = {k: r[k] for k in
                             ("disputa", "situacao", "vencedor", "documento_fecho")
                             if k in r}
-        if i % 10 == 0 or i == len(alvos):
+        if i % GRAVA_A_CADA == 0 or i == len(alvos):
+            t.guarda("situacao", achados)
             print(f"    editais {i}/{len(alvos)}", flush=True)
         time.sleep(situacao.PAUSA_ENTRE)
     return t.guarda("situacao", achados)
@@ -496,12 +535,17 @@ def main() -> None:
     base["_rodada"] = {
         "data": dia,
         "cobertura": {
-            # O início é o da COLETA, não o desta invocação. Numa rodada retomada
-            # do checkpoint o relógio de parede marca segundos, e o validador
-            # reprova por "duração curta demais" um trabalho que de fato levou os
-            # quatro minutos — só que na tentativa anterior. O carimbo da coleta
-            # atravessa o checkpoint junto com os dados e conta a verdade.
-            "iniciado_em": c.get("iniciado_em") or inicio.isoformat(timespec="seconds"),
+            # O início é o da FASE MAIS ANTIGA desta rodada, não o desta
+            # invocação. Numa rodada retomada do checkpoint o relógio de parede
+            # marca segundos, e o validador reprova por "duração curta demais"
+            # um trabalho que de fato levou meia hora — só que em invocações
+            # anteriores do MESMO dia. Os carimbos atravessam o checkpoint junto
+            # com os dados e contam a verdade; o checkpoint é do dia, então isto
+            # nunca alcança a rodada de ontem.
+            "iniciado_em": min([x for x in (c.get("iniciado_em"),
+                                            ab["cobertura"].get("iniciado_em"),
+                                            c2["cobertura"].get("iniciado_em"))
+                                if x] or [inicio.isoformat(timespec="seconds")]),
             "concluido_em": datetime.now(TZ).isoformat(timespec="seconds"),
             "rede_direta": True,
             "pncp": {k: c[k] for k in ("brutos", "esperados", "paginas",
@@ -517,6 +561,18 @@ def main() -> None:
             # trabalho que já tinha sido feito.
             "abertas": {k: ab["cobertura"][k] for k in
                         ("brutos", "candidatos", "dias", "inexigiveis_descartados")},
+            # Quantos candidatos DESTA rodada ainda estão no radar e portanto
+            # precisam de veredito. Não é o mesmo que "candidatos colhidos", e a
+            # diferença bloqueou a rodada de 06/09/2026: 37 candidatos vieram da
+            # coleta, 6 deles a conferência na fonte revelou já encerrados, a
+            # fusão os removeu — e o portão continuou cobrando veredito de
+            # editais que não existiam mais em lugar nenhum. Denominador errado
+            # trava a rodada inteira por um trabalho impossível.
+            #
+            # O que o portão precisa garantir continua igual: nenhum candidato
+            # que chegou à tela ficou sem alguém ler. Só que agora ele cobra o
+            # que dá para entregar.
+            "triaveis": sum(1 for e in base["editais"] if not e.get("veredito")),
             "triados": 0,
             "conferidos": sum(1 for e in base["editais"]
                               if (e.get("situacao_item") or "").strip()),

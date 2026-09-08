@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 tools/build_publico.py:*)",
+      "Bash(python3 tools/monta.py:*)",
+      "Bash(python3 tools/rodada.py:*)",
+      "Bash(python3 tools/checa_rodada.py:*)",
+      "Bash(python3 tools/valida_rodada.py:*)",
+      "Bash(python3 tools/teste_pagina.py:*)",
+      "Bash(python3 tools/testes.py:*)"
+    ]
+  }
+}

@@ -108,9 +108,15 @@ VERSAO_CHECKPOINT = 3
 # bastante para que uma interrupção custe segundos em vez de meia hora.
 GRAVA_A_CADA = 10
 
-# Quantos dias para trás a varredura por publicação olha. Ver a nota extensa
-# em fase_coleta(): com um dia só, todo domingo a rodada morria.
-DIAS_PUBLICACAO = 3
+# As janelas que a varredura por publicação tenta, em ordem, até achar
+# movimento. Ver a nota extensa em fase_coleta(): com um dia só a rodada morria
+# todo domingo; com três, ela morreu no feriado de 7 de Setembro. Onze dias no
+# limite cobrem qualquer emenda de feriado brasileira sem virar coleta de mês.
+JANELAS_PUBLICACAO = (3, 5, 8, 11)
+
+# Abaixo disto, o que voltou não é um dia útil de licitação no Brasil. Um dia
+# útil normal traz ~5.800 contratações; 07/09/2026, feriado, trouxe 295.
+MINIMO_DIA_UTIL = 1500
 
 
 # ───────────────────────── checkpoint ─────────────────────────
@@ -173,7 +179,7 @@ def fase_coleta(t: Trabalho) -> dict:
     g = t.guardado("coleta")
     if g:
         return g
-    # A janela olha DIAS_PUBLICACAO dias para trás, não um.
+    # A janela ALARGA até achar dia útil, em vez de confiar num número fixo.
     #
     # Ela era ontem→hoje, e isso tinha um buraco semanal. Em 06/09/2026, um
     # domingo, a varredura devolveu ZERO em onze modalidades, zero páginas e
@@ -185,18 +191,35 @@ def fase_coleta(t: Trabalho) -> dict:
     #     04/09..05/09 (sex+sáb)     HTTP 200
     #     03/09..06/09               HTTP 200, 3.227 registros só no pregão
     #
-    # Órgão público não publica edital em fim de semana. Com a janela de um
-    # dia, todo domingo e toda segunda de madrugada a rodada morria — não por
-    # defeito do PNCP, mas por perguntar a ele sobre dois dias em que ninguém
-    # trabalha. Três dias sempre alcançam um dia útil, inclusive depois de
-    # feriado emendado, e reencontrar edital já visto não custa nada: a fusão
-    # é por id.
+    # A correção foi passar para três dias, com o comentário afirmando que
+    # três "sempre alcançam um dia útil, inclusive depois de feriado
+    # emendado". Dois dias depois isso foi desmentido pelo calendário: em
+    # 08/09/2026, terça, a janela de três dias cobriu sábado, domingo e o
+    # 7 de Setembro — e trouxe 295 contratações, contra as ~5.800 de um dia
+    # útil. A sexta anterior ficou de fora por um dia.
     #
-    # E o efeito colateral é o que interessa: com três dias, uma varredura que
-    # volta zerada não é mais ambígua. Ou o PNCP caiu, ou a API mudou — nunca
-    # "foi domingo". O portão do validador passa a acusar só falha de verdade.
-    inicio = (datetime.now(TZ) - timedelta(days=DIAS_PUBLICACAO)).strftime("%Y%m%d")
+    # Número fixo não resolve isso: feriado emendado tem comprimento variável,
+    # e escolher o número grande o bastante para o pior caso encareceria todas
+    # as noites normais. Então a janela pergunta e decide: se o que voltou for
+    # magro demais para um dia útil, ela alarga e pergunta de novo, até achar
+    # movimento ou desistir. Reencontrar edital já visto não custa nada — a
+    # fusão é por id.
+    #
+    # O efeito colateral continua sendo o que mais vale: uma varredura que
+    # volta zerada depois de alargar até o limite não é mais ambígua. Ou o
+    # PNCP caiu, ou a API mudou — nunca "foi feriado".
     hoje = datetime.now(TZ).strftime("%Y%m%d")
+    r = None
+    for dias in JANELAS_PUBLICACAO:
+        inicio = (datetime.now(TZ) - timedelta(days=dias)).strftime("%Y%m%d")
+        r = coleta(inicio, hoje, 0)
+        brutos = r["cobertura"]["brutos"]
+        print(f"    janela de {dias} dia(s) ({inicio}→{hoje}): "
+              f"{brutos:,} contratações", flush=True)
+        if brutos >= MINIMO_DIA_UTIL or dias == JANELAS_PUBLICACAO[-1]:
+            break
+        print("    magro demais para um dia útil — alargando a janela",
+              flush=True)
     r = coleta(inicio, hoje, 0)
     c = r["cobertura"]
     print(f"    {c['brutos']:,} de {c['esperados']:,} contratações · "

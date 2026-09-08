@@ -75,7 +75,15 @@ outro, e cada uma deixa arquivo no disco.
 > ontem era ver um trigésimo do açude.
 >
 > Se ele falhar por varredura incompleta, rode de novo: o PNCP devolve 503 em
-> rajada. **Ele retoma do checkpoint** — a coleta que já deu certo não é repetida.
+> rajada. **Ele retoma do checkpoint** — a coleta que já deu certo não é
+> repetida, e a fase 5 grava a cada dez editais, então uma interrupção custa
+> segundos e não meia hora.
+>
+> A janela da varredura por publicação **alarga sozinha** quando o que volta é
+> magro demais para um dia útil: 3 dias, 5, 8, 11. Em 08/09/2026, terça depois
+> do 7 de Setembro, a de 3 dias trouxe 587 contratações e a de 5 trouxe 11.744.
+> Se você vir a linha "alargando a janela" na saída, é isso funcionando — não é
+> defeito.
 >
 > Saem dois arquivos em `trabalho/`: `base.json` (o estado fundido, que você NÃO
 > edita) e `triagem.json` (o que espera julgamento). Só precisam de veredito os

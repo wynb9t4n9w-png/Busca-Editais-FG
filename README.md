@@ -139,6 +139,27 @@ O mesmo ponto cego estava em `tools/teste_coleta.py`, que conferia o formato da
 API contra "ontem" e reprovava a suíte inteira aos domingos. Agora usa o último
 dia útil.
 
+### O 7 de Setembro desmentiu a correção do domingo
+
+Dois dias depois de a janela passar para três dias, com o comentário no
+código afirmando que três "sempre alcançam um dia útil, inclusive depois de
+feriado emendado", o calendário desmentiu: em 08/09/2026, terça, a janela
+cobriu sábado, domingo e o feriado de 7 de Setembro, e trouxe **295
+contratações contra as ~5.800 de um dia útil**. A sexta anterior ficou de fora
+por um dia.
+
+Número fixo não resolve: emenda de feriado tem comprimento variável, e
+dimensionar para o pior caso encarece todas as noites normais. **Feito:** a
+janela pergunta e decide — 3 dias, e se o que voltar for magro demais para um
+dia útil (abaixo de 1.500), alarga para 5, 8, 11 e para. Onze dias cobrem
+qualquer emenda brasileira sem virar coleta de mês.
+
+O prejuízo real do episódio foi menor do que parece, e vale registrar por quê:
+a varredura por prazo aberto (`/proposta`) não depende de data de publicação,
+então o que ficou de fora foram só os editais publicados na janela perdida que
+**não declaram prazo**. É um buraco estreito — mas é justamente o tipo de
+edital que só essa varredura enxerga.
+
 ### Quatro defeitos que o incidente revelou de carona
 
 - **O vigia conferia o arquivo errado.** `checa_rodada.py` nasceu depois de
@@ -159,6 +180,24 @@ dia útil.
   o PASSO 6 falhasse, e a sessão ia dormir com a rodada pronta no disco. Agora
   a resposta começa com `FALHA:` — e a rotina tem notificação por push, então
   uma FALHA chega a alguém.
+
+### O bloqueio de permissão, e o que ele ensinou
+
+A rotina de resgate das 06:00 falhou três dias seguidos, e a cada dia a
+mensagem mudava de etapa: primeiro `tools/build_publico.py` negado, depois
+`git fetch/pull` negado. A lista de permissões proposta cobria só o comando
+que aparecia na mensagem — diagnóstico pela mensagem de erro visível, não pelo
+procedimento inteiro. Custou um dia a mais de espelho atrasado.
+
+`.claude/settings.json` no repositório (não no container, que é recriado a cada
+disparo) libera hoje os scripts de `tools/`, as operações de git da Rotina 2 e
+a ferramenta Artifact — sem a qual a rotina de resgate reconstrói a página e
+não consegue publicá-la, que é o trabalho para o qual ela existe.
+
+Uma nota sobre quem escreveu o arquivo: **criar** o arquivo de permissões foi
+barrado ao agente, e deve ser mesmo — escrever as próprias regras é o que um
+agente não pode fazer sozinho. Uma pessoa criou a primeira versão; a extensão
+posterior passou. A assimetria é o desenho certo.
 
 ### O que ainda não está resolvido
 

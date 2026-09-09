@@ -232,7 +232,7 @@ outro, e cada uma deixa arquivo no disco.
 
 ## Rotina 2 — Espelho público, 04:00 (America/Sao_Paulo)
 
-Cron em UTC: `0 7 * * *` · gatilho `trig_01HFdC2iTrTujnW7TgSksfMF` · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
+Cron em UTC: `0 7 * * *` · gatilho `trig_012RxsqvKz1ivmocrGZi2pud` (v3) · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
 
 Esta é a única peça do sistema que escreve no repositório, e por isso é a única
 que roda numa **conversa fixa**: ela foi criada com o repositório anexado como
@@ -250,6 +250,21 @@ só rodava às 06:00, e nesse intervalo de três horas a página mostra ontem se
 nenhuma forma de distinguir "ainda não atualizou" de "parou de funcionar". Às
 04:00 a janela cai para cerca de uma hora, e um espelho atrasado depois disso é
 falha de verdade — que é o que um alarme precisa ser para valer alguma coisa.
+
+**A regra que passou a valer acima de todas as outras neste prompt: não afirmar
+nada sobre o repositório sem ter acabado de verificar com um comando, nesta
+execução, colando a saída.** Em 09/09/2026 o relatório da rotina fechou dizendo
+que `.claude/settings.json` "não existe no repositório" e que o desbloqueio
+daquele dia "veio do ambiente, não do arquivo". As duas afirmações eram falsas —
+o arquivo estava commitado desde 08/09 às 11:01 UTC, e a execução que falhou
+rodou às 09:02, duas horas ANTES de ele existir. O arquivo era exatamente a
+causa do desbloqueio.
+
+Isso não seria grave se ficasse no log. Mas relatório de vigia é lido por
+pessoa: a frase chegou ao dono do projeto, que veio perguntar o que estava
+errado quando nada estava. **Vigia que relata fato não verificado gasta a
+confiança que ele existe para produzir**, e é essa confiança que faz alguém
+levar a sério o alarme no dia em que ele for verdadeiro.
 
 **Duas armadilhas que dormiam no prompt anterior**, encontradas ao mudar o
 horário: ele mandava o caminho de resgate rodar `tools/fontes_externas.py`,

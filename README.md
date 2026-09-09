@@ -225,6 +225,37 @@ quebrado exatamente no dia em que fosse necessário** — e ninguém teria desco
 antes, porque prompt de rotina só é lido pela máquina, e só no dia ruim. Prompt
 é código: envelhece com o resto e precisa ser revisado quando o resto muda.
 
+### O vigia que relatou um fato falso
+
+No mesmo dia em que o ciclo passou a fechar sozinho, a rotina de espelho
+encerrou o relatório com duas afirmações confiantes e erradas:
+`.claude/settings.json` "não existe no repositório", e o desbloqueio "veio do
+ambiente, não do arquivo".
+
+Medido depois, com o histórico do próprio GitHub:
+
+```
+08/09 09:02 UTC   rotina de resgate roda — e falha
+08/09 11:01 UTC   o arquivo de permissões é criado
+08/09 11:04 UTC   o arquivo é completado com as regras de git
+09/09 07:00 UTC   rotina roda de novo — e funciona
+```
+
+A execução que falhou rodou **duas horas antes de o arquivo existir**. Ele é
+exatamente a causa do desbloqueio, e a rotina concluiu o contrário.
+
+O erro técnico é pequeno: ela provavelmente olhou o disco antes do `git pull`.
+O custo não é. Relatório de vigia é lido por pessoa, não por máquina: a frase
+chegou ao dono do projeto, que veio perguntar o que estava quebrado quando nada
+estava. **Um vigia que afirma o que não verificou gasta a confiança que ele
+existe para produzir** — e é essa confiança que decide se alguém vai levar o
+alarme a sério no dia em que ele for verdadeiro.
+
+**Feito:** a regra que abre o prompt da rotina, acima de todas as outras — não
+afirmar nada sobre o repositório sem ter rodado o comando nesta execução e
+colado a saída; e, quando não der para rodar, escrever "não consegui verificar"
+em vez do fato.
+
 ### O que ainda não está resolvido
 
 A rotina de resgate das 06:00 relatou, no próprio painel, "scan complete &

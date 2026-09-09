@@ -403,8 +403,11 @@ function renderRadar(){
       '<div class="stat s-morno"><b>'+mornos.length+'</b><span>Mornos</span></div>'+
       '<div class="stat s-prazo"><b>'+urgentes.length+'</b><span>Quentes/mornos em 7 dias</span></div>'+
       '<div class="stat"><b>'+esc(dinheiro(soma))+'</b><span>Valor em jogo</span></div>'+
-      '<div class="stat"><b>'+abertos.filter(function(e){ return !e.encerramento; }).length+
-        '</b><span>Sem prazo declarado</span></div>'+
+      /* Contava sobre `abertos`, que inclui frio — o mesmo erro que o contador
+         de urgência já tinha corrigido. Um frio sem prazo declarado não é uma
+         incógnita que valha a pena vigiar; é um frio. */
+      '<div class="stat"><b>'+quentes.concat(mornos).filter(function(e){ return !e.encerramento; }).length+
+        '</b><span>Quentes/mornos sem prazo</span></div>'+
     '</div>';
 
   if(correndo.length){
@@ -424,7 +427,11 @@ function renderRadar(){
     'inexigibilidade saem na varredura — o certame acabou, e um arquivo de '+
     'disputas terminadas faz o dia parecer cheio quando está vazio. O corte é '+
     'feito depois de a situação ser conferida item a item na fonte, nunca pela '+
-    'dedução da coleta: ela já escondeu edital ainda disputável.</div>';
+    'dedução da coleta: ela já escondeu edital ainda disputável. '+
+    'Desde 09/09/2026 sai também <b>o que declara menos de R$ 500 mil</b>: '+
+    'participar custa quase o mesmo trabalho em qualquer tamanho de contrato. '+
+    'Valor sigiloso fica — desconhecido não é pequeno. Radar curto é o '+
+    'resultado esperado; a Cobertura mostra quantos o piso cortou.</div>';
 
   if(!estado.editais.length){
     corpo += '<div class="card"><div class="vazio"><b>Nenhuma rodada ainda</b>'+
@@ -450,20 +457,30 @@ function renderRadar(){
 }
 
 /* ---------- PRAZOS ---------- */
+/* Só quente e morno têm prazo aqui. O Radar já tinha aprendido isso no contador
+   de urgência — "um frio urgente é só um frio" — mas esta aba continuava
+   listando os descartados, e era ela que enchia a tela: medido em 09/09/2026,
+   26 dos 28 prazos exibidos eram de editais que já tínhamos decidido não
+   disputar. Prazo de edital descartado não é prazo, é data. */
 function renderPrazos(){
   var lista = estado.editais.filter(function(e){
     var d = diasAte(e.encerramento);
     var st = statusDe(e);
-    return disputavel(e) && d!==null && d>=0 && d<=45 && st!=="descartado" && st!=="perdido";
+    return disputavel(e) && d!==null && d>=0 && d<=45 &&
+           (e.veredito==="quente" || e.veredito==="morno") &&
+           st!=="descartado" && st!=="perdido";
   }).sort(function(a,b){ return diasAte(a.encerramento)-diasAte(b.encerramento); });
 
   var corpo = '<h2><span class="t">Prazos dos próximos 45 dias</span></h2>'+
     '<div class="hint">A data que importa é o encerramento do prazo de propostas. '+
-    'Um edital aderente descoberto tarde demais custa o mesmo que um edital nunca encontrado.</div>';
+    'Um edital aderente descoberto tarde demais custa o mesmo que um edital nunca '+
+    'encontrado. <b>Só quente e morno entram aqui</b> — o que foi triado como frio '+
+    'tem data, não tem prazo; ele fica no Arquivo.</div>';
 
   if(!lista.length){
     corpo += '<div class="card"><div class="vazio"><b>Nenhum prazo à vista</b>'+
-      'Nada em aberto nos próximos 45 dias. Editais sem data de encerramento declarada aparecem no Arquivo.</div></div>';
+      'Nenhum quente ou morno encerra nos próximos 45 dias. O que foi triado como '+
+      'frio, e o que não tem data de encerramento declarada, aparecem no Arquivo.</div></div>';
   } else {
     var faixas = [
       ["Fecha esta semana", function(d){ return d<=7; }],
@@ -482,7 +499,16 @@ function renderPrazos(){
 }
 
 /* ---------- ARQUIVO ---------- */
-var filtro = {busca:"", uf:"", frente:"", veredito:"", disputa:"", so_abertos:false};
+/* `sem_frios` começa ligado. O Arquivo é a única tela onde um veredito `frio`
+   errado ainda pode ser encontrado — o prompt da triagem admite o risco em voz
+   alta: "um frio errado desaparece para sempre" — então os descartados NÃO são
+   apagados, só ficam atrás de um clique. O que se perde escondendo é quase
+   nada; o que se perdia mostrando era a tela inteira: em 09/09/2026 o Arquivo
+   abria com 30 linhas das quais 28 eram frio, e ler 30 linhas para achar 2
+   ensina a passar os olhos rápido. Escolher `frio` no seletor de veredito
+   destrava a lista sem precisar do botão: quem pede frio quer frio. */
+var filtro = {busca:"", uf:"", frente:"", veredito:"", disputa:"",
+              so_abertos:false, sem_frios:true};
 
 function renderArquivo(){
   var ufs = {}, lista = estado.editais.slice();
@@ -501,12 +527,16 @@ function renderArquivo(){
     if(filtro.frente && (e.frentes||[]).indexOf(filtro.frente)<0) return false;
     if(filtro.disputa && disputaDe(e)!==filtro.disputa) return false;
     if(filtro.so_abertos && !aberto(e)) return false;
+    if(filtro.sem_frios && !filtro.veredito && e.veredito==="frio") return false;
     if(q){
       var alvo = ((e.objeto||"")+" "+(e.orgao||"")+" "+(e.municipio||"")+" "+(e.justificativa||"")).toLowerCase();
       if(alvo.indexOf(q)<0) return false;
     }
     return true;
   }).sort(function(a,b){ return String(b.publicado_em||"").localeCompare(String(a.publicado_em||"")); });
+
+  var frios = lista.filter(function(e){ return e.veredito==="frio"; }).length;
+  var escondidos = (filtro.sem_frios && !filtro.veredito) ? frios : 0;
 
   var corpo = '<h2><span class="t">Arquivo — tudo que está em disputa</span></h2>'+
     '<div class="filtros">'+
@@ -516,11 +546,20 @@ function renderArquivo(){
       '<select id="fVer">'+opcoes({quente:"Quente",morno:"Morno",frio:"Frio"}, filtro.veredito, "Todos os vereditos")+'</select>'+
       '<select id="fDisp">'+opcoes(DISPUTA, filtro.disputa, "Toda situação")+'</select>'+
       '<button class="btn-ghost btn-sm" id="fAbertos">'+(filtro.so_abertos?"Mostrando só abertos":"Só prazos abertos")+'</button>'+
+      '<button class="btn-ghost btn-sm" id="fFrios">'+
+        (filtro.sem_frios?"Mostrar descartados":"Ocultar descartados")+'</button>'+
     '</div>'+
-    '<p class="small">'+vis.length+' de '+lista.length+' editais.</p>';
+    '<p class="small">'+vis.length+' de '+lista.length+' editais'+
+      (escondidos ? ' · <b>'+escondidos+'</b> triado'+(escondidos>1?'s':'')+
+                    ' como frio fora da lista — clique em “Mostrar descartados” '+
+                    'se desconfiar de um veredito' : '')+'.</p>';
 
   if(!vis.length){
-    corpo += '<div class="card"><div class="vazio"><b>Nada com esses filtros</b>Afrouxe a busca.</div></div>';
+    corpo += '<div class="card"><div class="vazio"><b>Nada com esses filtros</b>'+
+      (escondidos
+        ? 'Os '+escondidos+' edita'+(escondidos>1?'is':'l')+' desta rodada foram triados '+
+          'como frio e estão ocultos. Clique em “Mostrar descartados” para vê-los.'
+        : 'Afrouxe a busca.')+'</div></div>';
   } else {
     corpo += '<div class="card rolagem"><table><thead><tr>'+
       '<th>Publicado</th><th>Órgão</th><th>Objeto</th><th>Frentes</th>'+
@@ -551,6 +590,7 @@ function renderArquivo(){
   el("fVer").addEventListener("change", function(){ filtro.veredito=this.value; renderArquivo(); });
   el("fDisp").addEventListener("change", function(){ filtro.disputa=this.value; renderArquivo(); });
   el("fAbertos").addEventListener("click", function(){ filtro.so_abertos=!filtro.so_abertos; renderArquivo(); });
+  el("fFrios").addEventListener("click", function(){ filtro.sem_frios=!filtro.sem_frios; renderArquivo(); });
 }
 
 /* ---------- COBERTURA ---------- */
@@ -559,7 +599,10 @@ function renderCobertura(){
   var corpo = '<h2><span class="t">Cobertura das rodadas</span></h2>'+
     '<div class="hint">Esta aba existe para que uma varredura que falhou não se pareça com uma '+
     'que deu certo. A rotina só publica depois de passar por <span class="mono">tools/valida_rodada.py</span>, '+
-    'que confere se o número de contratações colhidas bate com o que a API do PNCP prometeu entregar.</div>';
+    'que confere se o número de contratações colhidas bate com o que a API do PNCP prometeu entregar. '+
+    'A coluna <b>Abaixo do piso</b> conta os editais aderentes ao tema que o corte de '+
+    'R$ 500 mil descartou naquela noite: é ela que separa “o radar está curto porque '+
+    'assim foi decidido” de “o radar está curto porque quebrou”.</div>';
 
   if(!rodadas.length){
     corpo += '<div class="card"><div class="vazio"><b>Nenhuma rodada registrada</b>'+
@@ -568,6 +611,7 @@ function renderCobertura(){
     corpo += '<div class="card rolagem"><table><thead><tr>'+
       '<th>Data</th><th class="num">PNCP colhidas</th><th class="num">Esperadas</th>'+
       '<th class="num">Candidatos</th><th class="num">Fontes externas</th>'+
+      '<th class="num">Abaixo do piso</th>'+
       '<th class="num">Triados</th><th class="num">Novos</th><th class="num">Duração</th>'+
       '</tr></thead><tbody>'+
       rodadas.map(function(r){
@@ -584,6 +628,12 @@ function renderCobertura(){
           '<td class="num">'+esc((p.esperados||0).toLocaleString("pt-BR"))+'</td>'+
           '<td class="num">'+esc(p.candidatos||0)+'</td>'+
           '<td class="num">'+esc((x.abertas||0)+"/"+(x.tentadas||0))+'</td>'+
+          /* Sem esta coluna um radar de dois editais parece defeito. Ela diz
+             quantos aderentes ao tema o piso de valor cortou naquela noite —
+             o radar curto é escolha, e o número prova. Rodadas anteriores ao
+             piso não têm a chave e mostram um traço, não um zero: zero seria
+             a afirmação falsa de que nada foi cortado. */
+          '<td class="num">'+(c.baratos_removidos==null?'—':esc(c.baratos_removidos))+'</td>'+
           '<td class="num">'+esc(c.triados||0)+'</td>'+
           '<td class="num"><b>'+esc(c.novos||0)+'</b></td>'+
           '<td class="num">'+esc(dur)+'</td>'+

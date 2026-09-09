@@ -61,9 +61,28 @@ window.addEventListener("load", function(){
         k,
         b ? "botao-ok" : "SEM-BOTAO",
         p ? (p.hidden ? "OCULTO" : "visivel") : "SEM-PAINEL",
-        p ? p.innerHTML.length : -1
+        p ? p.innerHTML.length : -1,
+        p ? (p.innerHTML.match(/tag frio/g) || []).length : -1
       ].join(","));
     });
+    /* Os descartados não somem do estado, só da tela: o botão tem de trazê-los
+       de volta. Sem esta parte da sonda, "Prazos sem frio" e "Arquivo sem frio"
+       passariam igual se alguém tivesse apagado os frios do estado — que é
+       precisamente o que não se quer, porque um veredito frio errado deixaria
+       de ter onde ser encontrado. */
+    try {
+      var ta = document.getElementById("tab-arquivo");
+      if (ta) ta.click();
+      var bf = document.getElementById("fFrios");
+      if (!bf) { window.__erros.push("arquivo: botao fFrios nao existe"); }
+      else {
+        bf.click();
+        var pa = document.getElementById("p-arquivo");
+        linhas.push(["arquivo-destravado", "botao-ok", "visivel",
+                     pa.innerHTML.length,
+                     (pa.innerHTML.match(/tag frio/g) || []).length].join(","));
+      }
+    } catch (e) { window.__erros.push("destrava frios: " + e.message); }
     var d = document.createElement("div");
     d.id = "__sonda";
     d.textContent = linhas.join(";") + "|" + (window.__erros.join(" ~ ") || "nenhum");
@@ -197,9 +216,11 @@ def main() -> None:
             falhou += 1
         else:
             corpo, erros = m.group(1).split("|", 1)
+            frios_vistos = {}
             for linha in corpo.split(";"):
-                aba, botao, visivel, tamanho = linha.split(",")
-                tamanho = int(tamanho)
+                aba, botao, visivel, tamanho, frios = linha.split(",")
+                tamanho, frios = int(tamanho), int(frios)
+                frios_vistos[aba] = frios
                 probs = []
                 if botao != "botao-ok":
                     probs.append("botão da aba não existe")
@@ -209,9 +230,29 @@ def main() -> None:
                           else CONTEUDO_MINIMO)
                 if tamanho < minimo:
                     probs.append(f"painel praticamente vazio ({tamanho} bytes)")
+                # Prazos e Arquivo abrem sem os descartados. Em 09/09/2026 eles
+                # abriam com 26 e 28 frios contra 2 editais que valiam proposta,
+                # e ler trinta linhas para achar duas ensina a passar os olhos
+                # rápido — que é como se perde justamente a linha que importa.
+                if aba in ("radar", "prazos", "arquivo") and frios > 0:
+                    probs.append(f"{frios} edital(is) frio na tela de abertura")
                 falhou += bool(probs)
-                print(f"{'ok  ' if not probs else 'FALHOU'} aba {aba:<10} {tamanho:>6} bytes"
+                print(f"{'ok  ' if not probs else 'FALHOU'} aba {aba:<18} {tamanho:>6} bytes"
                       + ("  <<< " + "; ".join(probs) if probs else ""))
+
+            # …e o botão precisa trazê-los de volta, senão "escondido" virou
+            # "apagado", e um veredito frio errado deixa de ter onde ser achado.
+            destravado = frios_vistos.get("arquivo-destravado")
+            tem_frio_no_estado = '"veredito": "frio"' in html
+            if destravado is None:
+                falhou += 1
+                print("FALHOU o Arquivo não expôs o botão de mostrar descartados")
+            elif tem_frio_no_estado and destravado == 0:
+                falhou += 1
+                print("FALHOU o botão de mostrar descartados não trouxe nenhum frio "
+                      "de volta — há frio no estado e ele continua invisível")
+            else:
+                print(f"ok   descartados voltam com um clique ({destravado} na lista)")
             if erros.strip() != "nenhum":
                 falhou += 1
                 print(f"FALHOU erros de JavaScript: {erros.strip()}")

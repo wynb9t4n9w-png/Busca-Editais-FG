@@ -199,6 +199,32 @@ barrado ao agente, e deve ser mesmo — escrever as próprias regras é o que um
 agente não pode fazer sozinho. Uma pessoa criou a primeira versão; a extensão
 posterior passou. A assimetria é o desenho certo.
 
+### 09/09/2026: o ciclo fechou sozinho, e o alarme falso ensinou outra coisa
+
+Depois de três dias de reparo manual, a rodada das 02:00 publicou e a rotina do
+espelho commitou sozinha — `Rodada de 09/09/2026 (espelho)`, sem mão humana. O
+`.claude/settings.json` versionado resolveu: o bloqueio era de permissão, e
+diagnosticá-lo pela etapa que aparecia na mensagem em vez de pelo procedimento
+inteiro foi o que custou dois dos três dias.
+
+Mas o dia rendeu um segundo achado, e ele veio de um alarme falso. O dono abriu
+a página às 05:53 e viu a rodada da véspera. Nada estava quebrado — a varredura
+termina entre 02:38 e 03:06 e o espelho só rodava às 06:00. **Três horas por dia
+em que a página mostra ontem e ninguém consegue distinguir "ainda não
+atualizou" de "parou de funcionar".** Um sistema que não deixa separar essas
+duas coisas gasta a confiança de quem olha, e a terceira vez que ele "parece
+quebrado" sem estar é a vez em que o quebrado de verdade passa batido.
+
+**Feito:** o espelho passou para 04:00 — uma hora de folga depois da rodada mais
+demorada já observada, e a janela de ambiguidade caiu para cerca de uma hora.
+
+E ao mexer no horário apareceu o que estava dormindo: o prompt daquela rotina
+mandava o caminho de resgate rodar `tools/fontes_externas.py`, que eu removi em
+06/09, e chamar `monta.py --externas`, opção que já não existe. **O resgate teria
+quebrado exatamente no dia em que fosse necessário** — e ninguém teria descoberto
+antes, porque prompt de rotina só é lido pela máquina, e só no dia ruim. Prompt
+é código: envelhece com o resto e precisa ser revisado quando o resto muda.
+
 ### O que ainda não está resolvido
 
 A rotina de resgate das 06:00 relatou, no próprio painel, "scan complete &

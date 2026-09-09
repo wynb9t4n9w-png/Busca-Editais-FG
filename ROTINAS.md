@@ -230,9 +230,9 @@ outro, e cada uma deixa arquivo no disco.
 > diga qual. **NÃO** reporte nada sobre a página pública — ela não é sua.
 
 
-## Rotina 2 — Espelho público, 06:00 (America/Sao_Paulo)
+## Rotina 2 — Espelho público, 04:00 (America/Sao_Paulo)
 
-Cron em UTC: `0 9 * * *` · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
+Cron em UTC: `0 7 * * *` · gatilho `trig_01HFdC2iTrTujnW7TgSksfMF` · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
 
 Esta é a única peça do sistema que escreve no repositório, e por isso é a única
 que roda numa **conversa fixa**: ela foi criada com o repositório anexado como
@@ -242,6 +242,21 @@ roda em sessão nova todo dia e não tem essa permissão — nem precisa ter.
 O prompt completo do procedimento vive dentro daquela conversa, estabelecido na
 primeira mensagem; o gatilho diário só a acorda com um lembrete curto. Se a
 conversa precisar ser recriada, o texto de referência é o desta seção.
+
+**Por que 04:00 e não 06:00.** Em 09/09/2026 o dono do projeto abriu a página
+às 05:53, viu a rodada da véspera e concluiu que tinha quebrado de novo. Não
+tinha: a varredura das 02:00 termina de publicar entre 02:38 e 03:06, o espelho
+só rodava às 06:00, e nesse intervalo de três horas a página mostra ontem sem
+nenhuma forma de distinguir "ainda não atualizou" de "parou de funcionar". Às
+04:00 a janela cai para cerca de uma hora, e um espelho atrasado depois disso é
+falha de verdade — que é o que um alarme precisa ser para valer alguma coisa.
+
+**Duas armadilhas que dormiam no prompt anterior**, encontradas ao mudar o
+horário: ele mandava o caminho de resgate rodar `tools/fontes_externas.py`,
+removido em 06/09, e chamar `monta.py --externas`, opção que não existe mais. O
+resgate teria quebrado exatamente na hora em que fosse necessário. Prompt de
+rotina envelhece junto com o código e ninguém percebe, porque ele só é lido pela
+máquina — e só no dia ruim.
 
 Existe também pelo motivo que a rotina gêmea da Pauta Thutor existe: em
 29/08/2026 a coleta de lá publicou o artifact mas não fez o commit, e a página

@@ -35,7 +35,7 @@ outro, e cada uma deixa arquivo no disco.
 >
 > **Você NÃO escreve no repositório.** Sessões criadas por gatilho nascem sem o
 > repositório nas fontes autorizadas e o proxy do git recusa o push. A página
-> pública é da rotina das 06:00. Não faça commit, não faça push, não rode
+> pública é da rotina das 04:00. Não faça commit, não faça push, não rode
 > `tools/build_publico.py`.
 >
 > **O que se espera de você:** encontrar oportunidade REAL para o portfólio da
@@ -122,6 +122,20 @@ outro, e cada uma deixa arquivo no disco.
 >   R$ 300 mil). Valor sigiloso **não** impede.
 > - `morno` — tema certo, mas porte menor ou escopo ainda impreciso.
 > - `frio` — não é o nosso negócio.
+>
+> **Edital pequeno não chega mais até você.** Desde 09/09/2026 o piso é
+> `perfil.VALOR_MINIMO` = R$ 500.000 de valor global, e o corte vale para o
+> radar **e para a memória**. A razão é aritmética: ler o edital, montar
+> proposta, reunir habilitação e acompanhar sessão custa quase o mesmo em
+> qualquer tamanho de contrato, e abaixo desse patamar a conta não fecha nem
+> ganhando. Espere um radar curto: a meta é pipeline comercial real, não volume.
+> Radar de dois editais com os dois valendo proposta é um bom radar.
+>
+> **Valor sigiloso ou não declarado PASSA pelo piso**, e passa de propósito:
+> desconhecido não é pequeno. Dos 66 editais medidos em 09/09/2026, 36
+> declaravam menos de R$ 500 mil, 16 declaravam mais e **14 não declaravam
+> nada**. Quem decide sobre a incógnita é você, lendo o objeto — e um deles pode
+> ser o maior do ano.
 >
 > **`relicita` (deserto ou fracassado) merece atenção EXTRA**: o órgão quis
 > comprar, não conseguiu, e costuma voltar. Quem já leu o edital chega na frente.
@@ -220,8 +234,9 @@ outro, e cada uma deixa arquivo no disco.
 > conferidos; quentes e mornos, com objeto e valor de cada quente; quantos
 > `relicita`; quantos fecham prazo em 3 dias (a faixa de urgência do topo do
 > Radar); quantos candidatos **só a varredura por prazo aberto enxergou**;
-> quantas inexigibilidades, quantas disputas encerradas e quantas publicações
-> duplicadas saíram; duração; e o link do artifact.
+> quantas inexigibilidades, quantas disputas encerradas, quantas publicações
+> duplicadas e quantos abaixo do piso de R$ 500 mil saíram; duração; e o link
+> do artifact.
 >
 > Feche com DUAS LINHAS do PASSO 8: a proposta mais forte de termo ou veto, e
 > qualquer órgão que voltou a comprar.

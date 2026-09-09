@@ -42,7 +42,11 @@ def base() -> dict:
             "uf": "PR", "municipio": "Exemplo",
             "modalidade": "Pregão - Eletrônico",
             "objeto": "Contratação de consultoria para pesquisa de clima organizacional",
-            "valor": 480000.0, "sigiloso": False,
+            # Acima do piso de perfil.VALOR_MINIMO de propósito: a rodada base
+            # precisa ser íntegra, e desde 09/09/2026 um edital de valor
+            # declarado pequeno já não é íntegro — é um edital que a coleta
+            # deveria ter cortado. Quem testa o piso é tools/teste_valor.py.
+            "valor": 780000.0, "sigiloso": False,
             "publicado_em": (HOJE - timedelta(days=1)).date().isoformat(),
             "encerramento": (HOJE + timedelta(days=12)).isoformat(timespec="seconds"),
             "link": "https://pncp.gov.br/app/editais/00000000000191/2026/42",

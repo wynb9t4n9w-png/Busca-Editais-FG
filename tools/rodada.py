@@ -59,6 +59,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import situacao                                    # noqa: E402
 import camada2                                     # noqa: E402
 from coleta_pncp import coleta, coleta_abertas     # noqa: E402
+from perfil import VALOR_MINIMO, vale_o_trabalho    # noqa: E402
 
 TZ = timezone(timedelta(hours=-3))
 RAIZ = Path(__file__).resolve().parent.parent
@@ -224,7 +225,8 @@ def fase_coleta(t: Trabalho) -> dict:
     c = r["cobertura"]
     print(f"    {c['brutos']:,} de {c['esperados']:,} contratações · "
           f"{c['candidatos']} candidatos · "
-          f"{c['inexigiveis_descartados']} inexigibilidade(s) fora", flush=True)
+          f"{c['inexigiveis_descartados']} inexigibilidade(s) fora · "
+          f"{c.get('baratos_descartados', 0)} abaixo do piso de valor", flush=True)
     if c["paginas_perdidas"] or c["brutos"] < c["esperados"]:
         raise SystemExit(
             f"FALHA: varredura incompleta ({c['paginas_perdidas']} página(s) "
@@ -479,9 +481,25 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
 
     lista, duplicatas = dedup(list(editais.values()))
 
-    # Antes de qualquer corte, o que passou por aqui vai para a memória. É o
+    # O piso de valor, aplicado ANTES da memória de propósito.
+    #
+    # Participar custa quase o mesmo trabalho num contrato de R$ 50 mil e num de
+    # R$ 2 milhões, então abaixo de R$ 500.000 declarados a conta não fecha nem
+    # ganhando. E se não vale a pena disputar, também não vale a pena lembrar:
+    # a memória existe para o aprendizado descobrir vocabulário e órgãos
+    # recorrentes DENTRO do que a Thutor disputaria. Encher esse caderno de
+    # contratos de R$ 8 mil ensina o filtro a reconhecer o que ninguém quer.
+    #
+    # Sigiloso e valor não declarado ficam — ver perfil.vale_o_trabalho():
+    # desconhecido não é pequeno, e quem decide sobre a incógnita é a triagem.
+    antes_piso = len(lista)
+    lista = [e for e in lista if vale_o_trabalho(e.get("valor"), e.get("sigiloso"))]
+    baratos = antes_piso - len(lista)
+
+    # Antes dos cortes de prazo, o que passou por aqui vai para a memória. É o
     # último ponto em que os editais que fecharam hoje ainda existem.
-    memoria = {m["id"]: m for m in (estado.get("memoria") or [])}
+    memoria = {m["id"]: m for m in (estado.get("memoria") or [])
+               if vale_o_trabalho(m.get("valor"), m.get("sigiloso"))}
     for e in lista:
         memoria[e["id"]] = {k: e[k] for k in CAMPOS_MEMORIA if k in e}
 
@@ -503,7 +521,7 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     # aqui, uma vez, sem exigir purga manual de ninguém.
     novo.pop("mercado", None)
     novo["atualizado_em"] = datetime.now(TZ).isoformat(timespec="seconds")
-    return novo, novos, fechados, duplicatas
+    return novo, novos, fechados, duplicatas, baratos
 
 
 def main() -> None:
@@ -552,7 +570,7 @@ def main() -> None:
     achados = fase_situacao(t, alvos)
 
     print("[6/6] fundindo com o estado anterior", flush=True)
-    base, novos, fechados, duplicatas = funde(estado, r, achados, dia)
+    base, novos, fechados, duplicatas, baratos = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
     base["_rodada"] = {
@@ -602,6 +620,8 @@ def main() -> None:
             "novos": len(novos), "descartados": 0,
             "inexigiveis_descartados": c["inexigiveis_descartados"],
             "fechados_removidos": fechados,
+            "baratos_removidos": baratos,
+            "valor_minimo": VALOR_MINIMO,
             "duplicatas_unidas": duplicatas,
         },
     }
@@ -628,6 +648,8 @@ def main() -> None:
     print(f"    {c['inexigiveis_descartados']} inexigibilidade(s) descartada(s) · "
           f"{fechados} disputa(s) encerrada(s) removida(s) · "
           f"{duplicatas} duplicata(s) unida(s)")
+    print(f"    {baratos} abaixo de R$ {VALOR_MINIMO:,.0f} removido(s) do radar e "
+          "da memória (sigiloso não conta como abaixo)")
     print(f"    {len(folha)} para triar → {a.trabalho}/triagem.json")
     print(f"    estado fundido → {a.trabalho}/base.json")
     print(f"\nAgora: leia triagem.json, decida veredito e justificativa de cada um,\n"

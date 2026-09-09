@@ -278,6 +278,36 @@ PONTOS_MODALIDADE = {
     "dialogo": 8, "inexigibilidade": 3, "leilao": 0,
 }
 
+# ───────────────────── o piso de valor ─────────────────────
+#
+# Participar de licitação custa trabalho real: ler o edital inteiro, montar
+# proposta técnica, reunir habilitação, acompanhar sessão. Esse custo é quase o
+# mesmo para um contrato de R$ 50 mil e para um de R$ 2 milhões — então abaixo
+# de um certo patamar a conta não fecha, mesmo ganhando. Decidido em
+# 09/09/2026: R$ 500.000 é esse patamar.
+VALOR_MINIMO = 500_000.0
+
+# E aqui está a exceção que NÃO é exceção: valor sigiloso ou não declarado não
+# é valor baixo — é valor desconhecido, e as duas coisas não se parecem.
+#
+# Medido no radar de 09/09/2026: dos 66 editais, 36 declaravam menos de R$ 500
+# mil, 16 declaravam mais, e 14 não declaravam nada. Descartar esses 14 seria
+# apagar o desconhecido junto com o pequeno, e a assimetria é violenta —
+# manter cada um custa um parágrafo de triagem por noite, descartar um pode
+# custar o contrato do ano. O órgão que esconde o orçamento costuma fazê-lo
+# para não ancorar o lance, o que se correlaciona com processo grande, não
+# pequeno (isto é inferência, não medição: até hoje nenhum sigiloso da memória
+# chegou a ter vencedor com valor declarado para conferir).
+#
+# Então o piso corta o que se SABE ser pequeno, e deixa passar o que não se
+# sabe. Quem decide sobre a incógnita é a triagem, lendo o objeto.
+def vale_o_trabalho(valor: float | None, sigiloso: bool | None = None) -> bool:
+    """O valor declarado justifica o custo de participar? Incógnita passa."""
+    if sigiloso or not valor or valor <= 0:
+        return True
+    return valor >= VALOR_MINIMO
+
+
 LIMIAR_CANDIDATO = 14  # abaixo disto não vale nem o parágrafo de triagem
 
 # A partir de quantos termos de núcleo a evidência temática vence um veto.

@@ -28,6 +28,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from perfil import VALOR_MINIMO                     # noqa: E402
+
 TZ = ZoneInfo("America/Sao_Paulo")
 
 VEREDITOS = {"quente", "morno", "frio"}
@@ -235,6 +239,17 @@ def valida_edital(e: dict, onde: str, ids: set[str], hoje) -> None:
         falha(f"{onde}: id '{eid}' tem caractere que quebra o funil. Só valem "
               "letras, dígitos, ponto, hífen, sublinhado e os dois-pontos do "
               "prefixo da fonte — nada de barra, espaço ou barra vertical.")
+
+    # O piso de valor. Se um edital de valor declarado pequeno voltou ao radar,
+    # ou a coleta parou de cortar ou alguém reeditou o estado à mão — e nos dois
+    # casos a tela passa a cobrar leitura de quem não vai propor.
+    v = e.get("valor")
+    if not e.get("sigiloso") and v and 0 < v < VALOR_MINIMO:
+        falha(f"{onde}: valor declarado R$ {v:,.2f}, abaixo do piso de "
+              f"R$ {VALOR_MINIMO:,.0f}. Participar custa quase o mesmo trabalho "
+              "em qualquer tamanho de contrato; abaixo do piso a conta não fecha "
+              "nem ganhando. (Sigiloso e valor não declarado passam: incógnita "
+              "não é valor baixo.)")
 
     link = (e.get("link") or "").strip()
     if link and not link.startswith(("http://", "https://")):

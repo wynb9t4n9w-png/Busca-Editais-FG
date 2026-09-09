@@ -35,7 +35,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).parent))
-from perfil import avalia, normaliza, LIMIAR_CANDIDATO  # noqa: E402
+from perfil import (avalia, normaliza, LIMIAR_CANDIDATO,        # noqa: E402
+                    VALOR_MINIMO, vale_o_trabalho)
 
 TZ = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
@@ -329,6 +330,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     candidatos: list[dict] = []
     vistos: set[str] = set()
     inexigiveis = 0            # aderentes ao tema, cortados por modalidade
+    baratos = 0                # aderentes ao tema, cortados pelo piso de valor
 
     for r in resultados:
         nome = MODALIDADES[r["modalidade"]]
@@ -359,6 +361,13 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             if cand["disputa"] == "inexigivel":
                 inexigiveis += 1
                 continue
+            # O piso de valor. Cortado aqui, junto com a inexigibilidade, pelo
+            # mesmo motivo: não depende de ler nada, e um corte num lugar só é
+            # um corte que dá para auditar. Sigiloso passa — ver a nota em
+            # perfil.vale_o_trabalho(): desconhecido não é pequeno.
+            if not vale_o_trabalho(cand.get("valor"), cand.get("sigiloso")):
+                baratos += 1
+                continue
             candidatos.append(cand)
 
     por_disputa: dict[str, int] = {}
@@ -385,6 +394,8 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "modalidades_falhas": modalidades_falhas,
             "candidatos": len(candidatos),
             "inexigiveis_descartados": inexigiveis,
+            "baratos_descartados": baratos,
+            "valor_minimo": VALOR_MINIMO,
             "por_disputa": por_disputa,
             "min_score": max(min_score, LIMIAR_CANDIDATO),
             "por_modalidade": por_modalidade,
@@ -425,6 +436,7 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
     candidatos: list[dict] = []
     vistos: set[str] = set()
     inexigiveis = 0
+    baratos = 0
     erros: list[str] = []
 
     with ThreadPoolExecutor(max_workers=trabalhadores) as pool:
@@ -449,6 +461,9 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
                 if cand["disputa"] == "inexigivel":
                     inexigiveis += 1
                     continue
+                if not vale_o_trabalho(cand.get("valor"), cand.get("sigiloso")):
+                    baratos += 1
+                    continue
                 candidatos.append(cand)
 
     candidatos.sort(key=lambda c: (-c["score"], -(c["valor"] or 0)))
@@ -460,6 +475,8 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
             "brutos": brutos,
             "candidatos": len(candidatos),
             "inexigiveis_descartados": inexigiveis,
+            "baratos_descartados": baratos,
+            "valor_minimo": VALOR_MINIMO,
             "erros": erros,
             "iniciado_em": inicio.isoformat(timespec="seconds"),
             "concluido_em": datetime.now(TZ).isoformat(timespec="seconds"),
@@ -502,6 +519,9 @@ def main() -> None:
     if c["modalidades_falhas"]:
         print(f"    modalidades que falharam inteiras: {c['modalidades_falhas']}")
     print(f"    {c['candidatos']} candidatos (score ≥ {c['min_score']}) → {a.saida}")
+    if c.get("baratos_descartados"):
+        print(f"    {c['baratos_descartados']} aderente(s) descartado(s) por valor "
+              f"declarado abaixo de R$ {c.get('valor_minimo', 0):,.0f}")
     if c["inexigiveis_descartados"]:
         print(f"    {c['inexigiveis_descartados']} aderente(s) descartado(s) por "
               f"inexigibilidade (art. 74: já decidida quando é publicada)")

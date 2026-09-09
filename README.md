@@ -803,13 +803,44 @@ um "fomento à modernização administrativa". Não houve mudança: a janela usu
 de proposta é de 15 a 45 dias e cabe folgada em 60. Fica registrado para não
 ser proposto de novo.
 
-### Valor não elimina
+### O piso de valor — R$ 500.000
 
-O ticket mínimo é R$ 50.000/mês; seis meses valem R$ 300.000, e é esse o
-patamar-alvo. Mas valor entra como **nota**, nunca como corte: boa parte dos
-editais vem com valor sigiloso ou por item, e um deles pode ser o maior do dia.
-Sigiloso pontua como incógnita — acima de um valor pequeno declarado, abaixo de
-um grande.
+Até 09/09/2026 valor entrava só como **nota**, nunca como corte, com o argumento
+de que um edital pequeno custa apenas um parágrafo de triagem. O argumento
+estava errado sobre o que custa caro: o parágrafo é barato, mas a tela cheia de
+contrato de R$ 25 mil ensina quem abre o radar a passar os olhos rápido — e é
+assim que se perde o de R$ 2 milhões três linhas abaixo.
+
+O piso é `perfil.VALOR_MINIMO = 500_000`, e a razão é aritmética: participar de
+licitação custa ler o edital inteiro, montar proposta técnica, reunir
+habilitação e acompanhar sessão. Esse custo é quase o mesmo para um contrato de
+R$ 50 mil e para um de R$ 2 milhões. Abaixo de um certo patamar a conta não
+fecha nem ganhando.
+
+**Valor sigiloso ou não declarado NÃO é valor baixo — é valor desconhecido**, e
+`perfil.vale_o_trabalho()` deixa a incógnita passar. Medido no radar de
+09/09/2026, sobre 66 editais: **36 declaravam menos de R$ 500 mil, 16
+declaravam mais, e 14 não declaravam nada.** Descartar os 14 seria apagar o
+desconhecido junto com o pequeno, e a assimetria é violenta — manter cada um
+custa um parágrafo por noite, descartar um pode custar o contrato do ano. Quem
+decide sobre a incógnita é a triagem, lendo o objeto.
+
+O corte acontece em três lugares, de propósito:
+
+| Onde | O quê |
+|---|---|
+| `coleta_pncp.py` | o candidato nem chega a existir — contado em `cobertura.baratos_descartados` |
+| `rodada.py`, na fusão | limpa o radar **e a memória**, antes de aprender com ela |
+| `valida_rodada.py` | reprova a rodada que deixar um passar |
+
+A limpeza da memória é o detalhe que quase escapou: o `aprende.py` lê a
+memória, não o radar. Se os pequenos ficassem lá, o radar continuaria
+aprendendo a gostar do que decidiu não disputar. Na primeira aplicação a
+memória caiu de **140 para 43** registros e o radar de **66 para 30** editais.
+
+O ticket mínimo declarado (R$ 50.000/mês, seis meses = R$ 300.000) continua
+sendo o critério de `quente` na triagem — o piso é mais alto que ele por
+escolha, e a diferença é onde mora o `morno`.
 
 ## Por que existe um validador
 
@@ -843,6 +874,7 @@ A rodada é recusada, com saída 1, quando:
 | `auth` sumiu | o estado foi corrompido |
 | edital sem veredito, ou quente sem justificativa | não passou pela triagem |
 | id duplicado, status fora da lista, link sem esquema | dado inventado |
+| edital de valor declarado abaixo de R$ 500 mil no radar | ou a coleta parou de cortar, ou alguém editou o estado à mão |
 
 **Volume baixo não reprova, desde que a conta feche.** A API informa quantos
 registros existem por modalidade, então a pergunta certa não é "veio bastante

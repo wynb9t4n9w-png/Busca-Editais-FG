@@ -97,6 +97,31 @@ SCORE_MINIMO_FRIO = 30      # frio abaixo disto não entra: conta e some
 # ocupa a tela e faz o dia parecer cheio quando está vazio.
 DISPUTAVEL = ("aberto", "indeterminado", "relicita")
 
+# Dispensa de licitação não chega ao radar, e o motivo é anterior a qualquer
+# medição: dispensa é, por definição, a hipótese em que a lei permite contratar
+# SEM concorrência. Quando o extrato aparece no PNCP, a escolha do fornecedor já
+# foi feita — como disse o dono do projeto em 10/09/2026, "quando vem a público
+# já é tarde demais". O caminho para contratação direta é relacionamento com o
+# órgão, e essa frente comercial não passa por este sistema.
+#
+# Medido na memória do mesmo dia, e o número é grosseiro porque a amostra é de 5:
+#
+#   Pregão / Concorrência   36 registros ·  1 já contratado ·  3%
+#   Dispensa                 5 registros ·  3 já contratados · 60%
+#
+# Vinte vezes mais provável chegar decidida. E o único "morno" que uma dispensa
+# já produziu foi o UniCRECI/SC de R$ 1,5 mi — que o conselho havia assinado com
+# a UFSC na véspera da publicação do extrato. Era falso positivo, não achado.
+#
+# **Mas ela continua sendo COLETADA e vai para a memória**, e isso não é
+# descuido: 3 dos 4 contratos com vencedor conhecido são dispensas. É delas que
+# sai a resposta a "quem está ganhando o que a Thutor vende" — hoje, duas
+# fundações e uma universidade federal, por contratação direta. Cortar a
+# modalidade na coleta, como se faz com a inexigibilidade, cegaria justamente a
+# inteligência de concorrente. Por isso o corte é aqui, no `pescavel`, que roda
+# DEPOIS de a memória ser preenchida.
+DIRETA = ("dispensa",)
+
 # Formato do checkpoint. Suba quando a forma do que as fases gravam mudar: um
 # checkpoint do formato velho retomado por código novo estoura num KeyError no
 # meio da rodada, que é o pior lugar para descobrir isso. Subiu para 2 quando a
@@ -515,7 +540,13 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     # editais ainda disputáveis como se já tivessem dono. Cortar por palpite
     # perderia oportunidade real — o erro que este projeto mais teme, porque some
     # sem reclamar. Aqui já é o fato lido item a item na fonte.
+    def direta(e) -> bool:
+        m = str(e.get("modalidade") or "").strip().lower()
+        return any(m.startswith(x) for x in DIRETA)
+
     def pescavel(e) -> bool:
+        if direta(e):                       # ver a nota em DIRETA
+            return False
         if e.get("disputa") not in DISPUTAVEL:
             return False
         d = dias_desde(e.get("encerramento"))
@@ -545,9 +576,12 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     for e in lista:
         memoria[e["id"]] = {k: e[k] for k in CAMPOS_MEMORIA if k in e}
 
+    # Contadas à parte de `fechados` de propósito: "a disputa acabou" e "nunca
+    # houve disputa" são fatos diferentes, e somá-los esconderia os dois.
+    diretas = sum(1 for e in lista if direta(e))
     antes = len(lista)
     lista = [e for e in lista if pescavel(e)]
-    fechados = antes - len(lista)
+    fechados = antes - len(lista) - diretas
 
     # O teto virou quase teórico depois do corte acima, mas continua: um dia com
     # centenas de disputáveis não pode transformar a página num arquivo de 5 MB.
@@ -565,7 +599,7 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
     # aqui, uma vez, sem exigir purga manual de ninguém.
     novo.pop("mercado", None)
     novo["atualizado_em"] = datetime.now(TZ).isoformat(timespec="seconds")
-    return novo, novos, fechados, duplicatas, baratos
+    return novo, novos, fechados, duplicatas, baratos, diretas
 
 
 def main() -> None:
@@ -621,7 +655,7 @@ def main() -> None:
     achados = fase_situacao(t, alvos)
 
     print("[6/6] fundindo com o estado anterior", flush=True)
-    base, novos, fechados, duplicatas, baratos = funde(estado, r, achados, dia)
+    base, novos, fechados, duplicatas, baratos, diretas = funde(estado, r, achados, dia)
 
     c = r["cobertura"]
     base["_rodada"] = {
@@ -671,6 +705,9 @@ def main() -> None:
             "novos": len(novos), "descartados": 0,
             "inexigiveis_descartados": c["inexigiveis_descartados"],
             "fechados_removidos": fechados,
+            # Contratações diretas: nunca houve disputa, então não é o mesmo
+            # fato que "a disputa acabou". Elas seguem na memória.
+            "diretas_removidas": diretas,
             "baratos_removidos": baratos,
             "valor_minimo": VALOR_MINIMO,
             "duplicatas_unidas": duplicatas,
@@ -698,6 +735,8 @@ def main() -> None:
     print(f"\nok  {len(base['editais'])} editais disputáveis no radar")
     print(f"    {c['inexigiveis_descartados']} inexigibilidade(s) descartada(s) · "
           f"{fechados} disputa(s) encerrada(s) removida(s) · "
+          f"{diretas} contratação(ões) direta(s) fora do radar "
+          f"(seguem na memória) · "
           f"{duplicatas} duplicata(s) unida(s)")
     print(f"    {baratos} abaixo de R$ {VALOR_MINIMO:,.0f} removido(s) do radar e "
           "da memória (sigiloso não conta como abaixo)")

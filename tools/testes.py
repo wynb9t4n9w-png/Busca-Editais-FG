@@ -47,6 +47,8 @@ SUITE = [
      "o corte por valor — e as cinco formas de dizer 'não sei o valor'"),
     ("censo de fontes", ["tools/teste_censo.py"], False,
      "o censo de quem publica — e a diferença entre ausente e presente-sem-tema"),
+    ("contratação direta", ["tools/teste_direta.py"], False,
+     "dispensa sai do radar e fica na memória — limpar sem cegar"),
     ("deduplicação", ["tools/teste_dedup.py"], False,
      "a mesma disputa contada duas vezes — e, pior, duas contadas como uma"),
     ("vigia", ["tools/teste_vigia.py"], False,

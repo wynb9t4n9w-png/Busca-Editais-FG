@@ -90,7 +90,7 @@ def lift(dentro: int, n_dentro: int, fora: int, n_fora: int) -> float:
     return p / q
 
 
-def censo_fontes(estado: dict, n_rodadas: int) -> None:
+def censo_fontes(estado: dict, _n_rodadas: int) -> None:
     """
     Quem publica no PNCP — e, sobretudo, quem devia e não apareceu.
 
@@ -116,6 +116,15 @@ def censo_fontes(estado: dict, n_rodadas: int) -> None:
     except Exception:
         VIGILANCIA = {}
 
+    # A idade do CENSO, não a do histórico de rodadas. As duas divergem — o
+    # censo nasceu em 10/09/2026 com oito rodadas já registradas —, e usar a
+    # errada faz o relatório afirmar "ausência sustentada" sobre um órgão que
+    # ele teve uma única noite para ver. É o mesmo erro do vigia que afirmou
+    # que um arquivo não existia no repositório sem ter olhado: conclusão
+    # coerente com o que se viu, e falsa. Um relatório que erra assim gasta a
+    # confiança que ele existe para produzir.
+    idade = max((d.get("dias", 0) for d in censo.values()), default=0)
+
     presentes = {c: d for c, d in censo.items() if c in VIGILANCIA}
     ausentes = [(n, tipo) for c, (n, tipo) in VIGILANCIA.items() if c not in censo]
 
@@ -129,11 +138,13 @@ def censo_fontes(estado: dict, n_rodadas: int) -> None:
         print(f"  NÃO apareceram ({len(ausentes)}): "
               + ", ".join(n for n, _ in ausentes[:12])
               + (" …" if len(ausentes) > 12 else ""))
-        if n_rodadas < 5:
-            print("  Com poucas rodadas isso ainda não distingue 'não publica aqui'")
-            print("  de 'não publicou nada nestes dias'. Espere o censo engordar.")
+        if idade < 5:
+            print(f"  O censo tem {idade} rodada(s): isto ainda NÃO distingue 'não")
+            print("  publica aqui' de 'não publicou nada nestes dias'. Não proponha")
+            print("  fonte nova com base nesta lista ainda.")
         else:
-            print("  Ausência sustentada é o único caso que justifica fonte nova.")
+            print(f"  O censo já tem {idade} rodadas. Ausência sustentada por todas")
+            print("  elas é o único caso que justifica fonte nova.")
 
     # órgãos que compram o tema, vistos em mais de uma rodada — prospecção
     ativos = [(c, d) for c, d in censo.items()

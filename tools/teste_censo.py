@@ -117,6 +117,35 @@ checa("nenhum nome repetido na vigilância",
       len({n for n, _ in VIGILANCIA.values()}) == len(VIGILANCIA))
 
 print()
+print("=== o relatório não afirma antes de poder ===")
+
+# Este caso existe porque o defeito aconteceu: a primeira versão media a
+# maturidade do censo pelo número de RODADAS do histórico, não pelo tempo que o
+# censo existe. Com oito rodadas registradas e uma única noite de censo, o
+# relatório afirmava "ausência sustentada" sobre órgãos que tivera uma chance de
+# ver. É o erro do vigia de 09/09 outra vez: conclusão coerente com o que se
+# viu, e falsa.
+import io, contextlib
+from aprende import censo_fontes                      # noqa: E402
+
+def saida(dias: int) -> str:
+    est = {"fontes_pncp": {ANVISA: {"nome": "ANVISA", "uf": "DF", "esfera": "F",
+                                    "brutos": 12, "tema": 0, "dias": dias,
+                                    "primeiro": "2026-09-04", "ultimo": "2026-09-10"}}}
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        censo_fontes(est, 99)       # 99 rodadas no histórico, de propósito
+    return buf.getvalue()
+
+novo, maduro = saida(1), saida(7)
+checa("censo de 1 rodada NÃO fala em ausência sustentada",
+      "sustentada" not in novo and "ainda NÃO distingue" in novo, novo[-160:])
+checa("censo de 7 rodadas fala", "sustentada" in maduro, maduro[-160:])
+checa("a maturidade vem do censo, não do histórico de rodadas",
+      "1 rodada(s)" in novo and "7 rodadas" in maduro,
+      "o número exibido não veio de `dias`")
+
+print()
 if falhas:
     print(f"FALHA: {len(falhas)} caso(s) — {', '.join(falhas)}")
     sys.exit(1)

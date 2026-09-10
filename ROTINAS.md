@@ -33,10 +33,11 @@ outro, e cada uma deixa arquivo no disco.
 > Destino único: o artifact privado, que é a fonte da verdade.
 > https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b
 >
-> **Você NÃO escreve no repositório.** Sessões criadas por gatilho nascem sem o
-> repositório nas fontes autorizadas e o proxy do git recusa o push. A página
-> pública é da rotina das 04:00. Não faça commit, não faça push, não rode
-> `tools/build_publico.py`.
+> **Você NÃO escreve no repositório.** Sessões criadas por gatilho nascem com
+> `sources: []` — sem o repositório nas fontes autorizadas — e o push é
+> recusado. Ler funciona mesmo assim, porque o repositório é público: o PASSO 2
+> traz o clone pronto. A página pública é da rotina das 04:00. Não faça commit,
+> não faça push, não rode `tools/build_publico.py`.
 >
 > **O que se espera de você:** encontrar oportunidade REAL para o portfólio da
 > Thutor — edital ainda disputável, escopo aderente, porte que sustente o ticket.
@@ -57,9 +58,28 @@ outro, e cada uma deixa arquivo no disco.
 >
 > ### PASSO 2 — A rodada determinística
 > ```
-> cd /home/user/Busca-Editais-FG      # clone se faltar; leitura funciona
+> cd /home/user/Busca-Editais-FG 2>/dev/null || \
+>   git clone https://github.com/wynb9t4n9w-png/Busca-Editais-FG.git \
+>       /home/user/Busca-Editais-FG && cd /home/user/Busca-Editais-FG
 > python3 tools/rodada.py <caminho do HTML do artifact>
 > ```
+>
+> **O repositório é `wynb9t4n9w-png/Busca-Editais-FG`, e é público** — o clone
+> acima funciona sem credencial nenhuma, mesmo numa sessão que não tenha o
+> repositório nas fontes autorizadas, e é só para **ler** `tools/`: continua
+> valendo não fazer commit nem push.
+>
+> A URL está por extenso de propósito. Em 10/09/2026 a rodada morreu aqui porque
+> esta linha dizia apenas "clone se faltar", sem dizer *o quê*: a sessão gastou o
+> orçamento inteiro tentando adivinhar o dono — `jgfontao`, `thutor`,
+> `thutor-consultoria`, `valantien/monitor-editais` —, concluiu que o repositório
+> era privado e inacessível, e não publicou nada. Nenhuma permissão faltava.
+> Faltava o nome.
+>
+> Se ainda assim o clone falhar, **não fique tentando variações do nome**:
+> responda começando com `FALHA: clone recusado`, cole o erro exato do git, e
+> diga que o repositório é `https://github.com/wynb9t4n9w-png/Busca-Editais-FG`.
+>
 > Um comando faz seis fases: suíte, **as duas varreduras do PNCP**, a camada 2,
 > conferência item a item na fonte, e a fusão com o estado anterior — que
 > deduplica as publicações da mesma disputa e guarda tudo na memória antes de
@@ -250,9 +270,19 @@ outro, e cada uma deixa arquivo no disco.
 Cron em UTC: `0 7 * * *` · gatilho `trig_012RxsqvKz1ivmocrGZi2pud` (v3) · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
 
 Esta é a única peça do sistema que escreve no repositório, e por isso é a única
-que roda numa **conversa fixa**: ela foi criada com o repositório anexado como
-fonte e como destino, o que é o que dá permissão de push. A varredura das 02:00
-roda em sessão nova todo dia e não tem essa permissão — nem precisa ter.
+que roda numa **conversa fixa** (`persistent_session_id`): ela foi criada com o
+repositório anexado como fonte e como destino, o que é o que dá permissão de
+push. A varredura das 02:00 roda em sessão nova todo dia e não tem essa
+permissão — nem precisa ter, porque só lê.
+
+**Sessão de gatilho não herda as fontes de quem criou o gatilho.** Medido em
+10/09/2026: um gatilho criado a partir da sessão que *tem* o repositório
+anexado nasce com `sources: []` do mesmo jeito, e nem `create_trigger` nem
+`update_trigger` expõem parâmetro para mudar isso. Só há duas formas de uma
+rotina alcançar o repositório: prendê-la a uma conversa que já o tenha — o que
+esta faz —, ou clonar de uma URL pública, que é o que a das 02:00 faz desde
+10/09. Quem for criar uma terceira rotina precisa escolher uma das duas de
+propósito; não existe terceira.
 
 O prompt completo do procedimento vive dentro daquela conversa, estabelecido na
 primeira mensagem; o gatilho diário só a acorda com um lembrete curto. Se a
@@ -294,7 +324,7 @@ pública ficou uma edição atrás sem ninguém perceber. Uma varredura que falh
 silêncio é indistinguível de uma que deu certo.
 
 > Rede de segurança do **Busca Editais FG**. A varredura roda às 02:00; você roda
-> às 06:00. Sua função é garantir que a página pública não fique atrás do
+> às 04:00. Sua função é garantir que a página pública não fique atrás do
 > artifact.
 >
 > Artifact (fonte da verdade): https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b

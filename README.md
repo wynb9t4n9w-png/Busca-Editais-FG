@@ -736,6 +736,54 @@ folga — e foi mandada esperar até o dia seguinte. Detectar sem reparar custa 
 mesmo dia que não detectar, e ainda dá a impressão de que existe vigilância. Agora
 ela refaz a rodada inteira.
 
+### O prompt que mandava clonar sem dizer o quê
+
+Em 10/09/2026 a varredura das 02:00 falhou e, dessa vez, falhou **em voz alta**:
+o relatório chegou por push começando com `FALHA: rodada não pôde rodar — sem
+acesso ao repositório`. O portão que faltava em 05/09 funcionou. O que não
+funcionou foi o passo anterior a ele.
+
+O prompt mandava:
+
+```
+cd /home/user/Busca-Editais-FG      # clone se faltar; leitura funciona
+```
+
+O diretório não existia — sessão de gatilho nasce vazia. E a linha manda clonar
+sem dizer **o quê**. A sessão passou o orçamento inteiro tentando adivinhar o
+dono a partir do nome do diretório: `jgfontao`, `thutor`, `thutor-consultoria`,
+e até um `valantien/monitor-editais` achado por busca na web. Todos devolveram
+404 ou pediram credencial. Ela concluiu, com evidência coerente e conclusão
+errada, que o repositório era privado e que só uma pessoa poderia liberá-lo.
+
+O repositório é **público**. Um `git clone` da URL certa funciona sem credencial
+nenhuma, em qualquer sessão. Não faltava permissão: faltava o nome, e o nome
+nunca esteve escrito em lugar nenhum que a rotina pudesse ler. O comentário
+"leitura funciona" era verdadeiro e inútil — informava a capacidade e omitia o
+endereço.
+
+Três coisas ficam disso:
+
+**Um comentário não é uma instrução.** `# clone se faltar` descreve uma
+intenção; `git clone <URL>` é executável. Onde uma rotina pode precisar agir sem
+contexto, o texto tem de ser copiável, não interpretável.
+
+**Uma sessão de gatilho não sabe nada que não esteja no prompt.** Ela não herda
+o `sources` de quem criou o gatilho — medido em 10/09/2026: um gatilho criado a
+partir da sessão que *tem* o repositório anexado nasce com `sources: []` do mesmo
+jeito. Tudo que a rodada precisa saber precisa estar escrito ali.
+
+**Diagnóstico plausível não é diagnóstico verificado**, e este erro é o mesmo de
+09/09 com outra roupa: naquele dia o vigia afirmou que um arquivo não existia no
+repositório sem ter olhado; neste, a rodada afirmou que o repositório era
+privado depois de testar quatro nomes errados. As duas conclusões eram coerentes
+com o que se tinha visto, e as duas eram falsas. A regra que já valia para o
+vigia vale para todo mundo: **quando a conclusão for sobre o estado do
+repositório, ou se verifica nesta execução, ou não se afirma.**
+
+O prompt agora traz a URL por extenso, com o `git clone` pronto, e manda parar de
+adivinhar nomes se o clone falhar.
+
 ### A rodada virou dois comandos
 
 A causa mais provável da parada em si — e aqui a evidência é circunstancial, não

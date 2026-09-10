@@ -124,6 +124,42 @@ APOIO: dict[str, list[str]] = {
                 "sucessao", "desempenho", "competencia"],
 }
 
+# ───────────── apoio que pontua mas NÃO abre o portão ─────────────
+#
+# Um termo de apoio faz duas coisas hoje: soma 6 pontos, e conta como "uma
+# frente" para a regra `sustenta` — que deixa passar quem tem duas frentes de
+# apoio, mesmo sem nenhum termo de núcleo. As duas coisas são separáveis, e
+# precisam ser, porque há termo que serve bem para pontuar e péssimo para
+# decidir sozinho se algo é do nosso negócio.
+#
+# Medido em 10/09/2026 sobre os 41 editais que o radar já viu com score > 0:
+#
+#   entraram só por apoio, sem núcleo   28  →  21 frios, 7 sem veredito,
+#                                             ZERO quentes, ZERO mornos
+#   entraram com núcleo                 13  →  1 quente, 2 mornos, 8 frios
+#
+# Ou seja: em uma semana, a regra das duas frentes de apoio não produziu uma
+# única oportunidade — só trabalho de triagem. E `planejamento` aparece em 21
+# desses 28. É a palavra mais promíscua do léxico, porque em licitação pública
+# ela quase nunca fala de estratégia: fala de "planejamento e execução de
+# eventos", "planejamento de obra", "planejamento urbano", "planejamento da
+# execução de cursos".
+#
+# Medido também no fluxo cru, sobre 15.035 contratações de três dias: das 1.070
+# que morreram no portão com uma frente de apoio só, as doze de maior valor eram
+# todas compra de bem — desktops "de alto desempenho", piso esportivo "de alto
+# desempenho", "Formação de Registro de Preços" de eletrodomésticos, obra de
+# piscinas num "Centro de Capacitação". O portão estava certo; o risco é ele
+# abrir quando dois desses casam por acaso.
+#
+# `planejamento estrategico` continua em NUCLEO e sustenta sozinho, como deve.
+# O que deixa de sustentar é `planejamento` solto.
+#
+# Por que não remover o termo do APOIO: ele continua sendo evidência real quando
+# acompanha um núcleo — tirar pontos de um edital bom para consertar um ruim é
+# trocar um erro por outro.
+APOIO_FRACO = frozenset({"planejamento"})
+
 CONTEXTO = [
     "servidores", "gestores", "lideranc", "alta administracao", "alta direcao",
     "alta lideranc", "in company", "corpo gerencial", "dirigentes",
@@ -382,7 +418,10 @@ def avalia(objeto: str, valor: float | None = None, modalidade: str | None = Non
     # Sem nenhum termo de núcleo, o tema sozinho não sustenta o candidato:
     # "treinamento" + "servidores" pode ser curso de Excel. Exige-se ou um
     # núcleo, ou dois termos de apoio de frentes diferentes.
-    frentes_apoio = {f for f, d in achados.items() if "apoio" in d}
+    # Só conta como frente quem tem ao menos um apoio que NÃO seja fraco —
+    # ver a nota em APOIO_FRACO.
+    frentes_apoio = {f for f, d in achados.items()
+                     if any(t not in APOIO_FRACO for t in d.get("apoio", ()))}
     tem_nucleo = any("nucleo" in d for d in achados.values())
     sustenta = tem_nucleo or len(frentes_apoio) >= 2
 

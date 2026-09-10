@@ -86,6 +86,48 @@ OURO = [
 ]
 
 LIXO = [
+    # ── os cinco que provaram que `planejamento` sozinho não sustenta ──
+    #
+    # Em 10/09/2026, dos 28 editais que entraram no radar SÓ por apoio (sem
+    # nenhum termo de núcleo), 21 tinham `planejamento` como uma das duas
+    # frentes — e nenhum dos 28 virou quente ou morno em uma semana. Em
+    # licitação pública `planejamento` quase nunca fala de estratégia: fala de
+    # planejar a execução de um evento, de uma obra, de um curso. Ver a nota em
+    # perfil.APOIO_FRACO.
+    #
+    # `planejamento estrategico` continua em NUCLEO e sustenta sozinho — o caso
+    # de ouro logo acima garante isso.
+    ("Contratação de empresa especializada na prestação de serviços de "
+     "organização, planejamento, coordenação, execução e acompanhamento de "
+     "eventos institucionais, contemplando eventos comemorativos, solenidades, "
+     "reuniões técnicas, treinamentos, palestras e seminários",
+     1_200_000, "Pregão - Eletrônico",
+     "produção de eventos: 'planejamento' + 'treinamento' abriam o portão"),
+
+    ("Formação de Registro de Preços Unificada Inaugural para o fornecimento "
+     "eventual de MATERIAL PERMANENTE, visando atender as necessidades dos "
+     "hospitais e estabelecimentos vinculados à Secretaria Estadual de Saúde",
+     8_329_462, "Pregão - Eletrônico",
+     "'Formação de Registro de Preços' é jargão de compras, não capacitação"),
+
+    ("Contratação de empresa especializada para o planejamento e execução de "
+     "campanhas socioeducativas, bem como para a realização de cursos de "
+     "capacitação, destinados ao fortalecimento dos serviços e ações da "
+     "Política Municipal de Assistência Social",
+     860_000, "Pregão - Eletrônico",
+     "programação social para a população, não desenvolvimento organizacional"),
+
+    ("Contratação de empresa especializada para execução de obra comum de "
+     "engenharia destinada à pavimentação em concreto de vias urbanas, "
+     "conforme planejamento da Secretaria de Infraestrutura",
+     6_946_355, "Pregão - Eletrônico",
+     "obra: 'planejamento' aparece como setor que pediu, não como objeto"),
+
+    ("Planejamento, organização e execução integral do Curso de Formação de "
+     "Aquaviários - CFAQ-MAC/MAM, para a Autoridade Marítima",
+     4_174_584, "Pregão - Eletrônico",
+     "formação técnica regulada: 'planejamento' + 'formacao' abriam o portão"),
+
     ("Registro de Preços para o fornecimento de EQUIPAMENTOS DE INFORMÁTICA E "
      "SUPRIMENTOS, através da Secretaria de Administração e Gestão de Pessoas do "
      "Município", 270_977, "Pregão - Eletrônico",

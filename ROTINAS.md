@@ -248,6 +248,14 @@ outro, e cada uma deixa arquivo no disco.
 > filtro que ninguém audita depois. Leve as 2 ou 3 propostas mais fortes para o
 > relatório, com o número que as sustenta.
 >
+> A seção **QUEM PUBLICA NO PNCP** é a que responde "precisamos de fonte nova?".
+> Ela separa duas coisas que se parecem e pedem trabalhos opostos: um comprador
+> que **aparece** no PNCP e nunca vira candidato é problema de filtro; um que
+> **não aparece** é problema de fonte. Só o segundo justifica raspador — escrever
+> um para portal que o PNCP já cobre é caminho novo até onde o radar já está.
+> Ausência de um dia não vale: com poucas rodadas, "não publica aqui" e "não
+> publicou nada nestes dias" são indistinguíveis, e o próprio relatório avisa.
+>
 > ### PASSO 9 — Fechar
 > Em português, no máximo 10 linhas: contratações do PNCP e se a conta fechou;
 > fontes externas visitadas/abertas e qual rendeu; candidatos, triados,

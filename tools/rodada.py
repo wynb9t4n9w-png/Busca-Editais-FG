@@ -417,6 +417,48 @@ def dias_desde(iso) -> float | None:
     return (datetime.now(TZ).date() - d).days
 
 
+def unifica_censo(alvo: dict, outro: dict) -> None:
+    """Soma o censo de uma varredura no da outra, no lugar."""
+    for cnpj, d in outro.items():
+        a = alvo.setdefault(cnpj, {"nome": d.get("nome"), "uf": d.get("uf"),
+                                   "esfera": d.get("esfera"), "brutos": 0, "tema": 0})
+        a["brutos"] += d.get("brutos", 0)
+        a["tema"] += d.get("tema", 0)
+        # O nome mais longo costuma ser o menos truncado.
+        if len(d.get("nome") or "") > len(a.get("nome") or ""):
+            a["nome"] = d["nome"]
+        a["uf"] = a.get("uf") or d.get("uf")
+
+
+def funde_censo(anterior: dict | None, hoje: dict, dia: str) -> dict:
+    """
+    O censo acumulado: quem publica no PNCP, visto ao longo das rodadas.
+
+    Guarda pouco de propósito — nome, UF, esfera, totais e as datas da primeira
+    e da última aparição — porque o que se pergunta a ele é pouco: este
+    comprador existe aqui? desde quando? sumiu?
+
+    `dias` conta RODADAS em que o órgão apareceu, não contratações. É esse o
+    número que separa "publicou uma vez" de "publica sempre", e é ele que
+    transforma um órgão em prospecção ativa em vez de espera.
+    """
+    acc = dict(anterior or {})
+    for cnpj, d in hoje.items():
+        a = acc.get(cnpj)
+        if a is None:
+            a = {"nome": d.get("nome"), "uf": d.get("uf"), "esfera": d.get("esfera"),
+                 "brutos": 0, "tema": 0, "dias": 0, "primeiro": dia}
+        a["brutos"] = a.get("brutos", 0) + d.get("brutos", 0)
+        a["tema"] = a.get("tema", 0) + d.get("tema", 0)
+        a["dias"] = a.get("dias", 0) + 1
+        a["ultimo"] = dia
+        if len(d.get("nome") or "") > len(a.get("nome") or ""):
+            a["nome"] = d["nome"]
+        a["uf"] = a.get("uf") or d.get("uf")
+        acc[cnpj] = a
+    return acc
+
+
 def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[dict]]:
     """
     O estado de amanhã a partir do de hoje. Regras do PASSO 5 do ROTINAS, aqui
@@ -514,6 +556,8 @@ def funde(estado: dict, r: dict, achados: dict, dia: str) -> tuple[dict, list[di
 
     novo = dict(estado)
     novo["editais"] = lista
+    novo["fontes_pncp"] = funde_censo(estado.get("fontes_pncp"),
+                                  r["cobertura"].get("censo") or {}, dia)
     novo["memoria"] = sorted(memoria.values(),
                              key=lambda m: str(m.get("publicado_em") or ""),
                              reverse=True)[:MAX_MEMORIA]
@@ -550,6 +594,13 @@ def main() -> None:
     r["candidatos"] = r["candidatos"] + novos_abertos
     print(f"    {len(novos_abertos)} candidato(s) que só a varredura por prazo "
           f"aberto enxergou", flush=True)
+
+    # Os dois censos viram um. Somar `brutos` das duas varreduras conta o mesmo
+    # edital duas vezes de propósito: o número que interessa não é "quantas
+    # compras existem", é "com que frequência este comprador aparece na frente
+    # do radar". `tema` idem.
+    unifica_censo(r["cobertura"].setdefault("censo", {}),
+                  ab["cobertura"].get("censo") or {})
 
     c2 = fase_camada2(t)
     ja = {c["id"] for c in r["candidatos"]}

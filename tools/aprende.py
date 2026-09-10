@@ -90,6 +90,64 @@ def lift(dentro: int, n_dentro: int, fora: int, n_fora: int) -> float:
     return p / q
 
 
+def censo_fontes(estado: dict, n_rodadas: int) -> None:
+    """
+    Quem publica no PNCP — e, sobretudo, quem devia e não apareceu.
+
+    Esta seção existe para responder com número a pergunta que sempre volta:
+    "não deveríamos caçar mais fontes?". A resposta depende de um fato que só o
+    censo tem: o comprador aparece no PNCP ou não?
+
+      aparece e nunca vira candidato  →  o trabalho é no FILTRO
+      não aparece                     →  o trabalho é numa FONTE nova
+
+    Sem essa separação as duas coisas se parecem, e escrever um raspador para
+    um portal que o PNCP já cobre é fazer caminho novo até onde o radar já está.
+    """
+    censo = estado.get("fontes_pncp") or {}
+    print("--- QUEM PUBLICA NO PNCP ---")
+    if not censo:
+        print("  Censo ainda vazio: ele começa a existir na próxima rodada.")
+        print()
+        return
+
+    try:
+        from fontes import VIGILANCIA
+    except Exception:
+        VIGILANCIA = {}
+
+    presentes = {c: d for c, d in censo.items() if c in VIGILANCIA}
+    ausentes = [(n, tipo) for c, (n, tipo) in VIGILANCIA.items() if c not in censo]
+
+    if presentes:
+        print("  Da lista de vigilância, apareceram no PNCP:")
+        for c, d in sorted(presentes.items(), key=lambda x: -x[1].get("tema", 0)):
+            nome = VIGILANCIA[c][0]
+            print(f"    {nome:<26} {d.get('brutos',0):>5} contratações · "
+                  f"{d.get('tema',0)} do nosso tema · {d.get('dias',0)} rodada(s)")
+    if ausentes:
+        print(f"  NÃO apareceram ({len(ausentes)}): "
+              + ", ".join(n for n, _ in ausentes[:12])
+              + (" …" if len(ausentes) > 12 else ""))
+        if n_rodadas < 5:
+            print("  Com poucas rodadas isso ainda não distingue 'não publica aqui'")
+            print("  de 'não publicou nada nestes dias'. Espere o censo engordar.")
+        else:
+            print("  Ausência sustentada é o único caso que justifica fonte nova.")
+
+    # órgãos que compram o tema, vistos em mais de uma rodada — prospecção
+    ativos = [(c, d) for c, d in censo.items()
+              if d.get("tema", 0) >= 2 and c not in VIGILANCIA]
+    ativos.sort(key=lambda x: -x[1].get("tema", 0))
+    if ativos:
+        print()
+        print("  Compradores recorrentes do nosso tema (prospecção direta):")
+        for c, d in ativos[:12]:
+            print(f"    {d.get('tema',0):>3}x  {(d.get('nome') or '')[:52]} · "
+                  f"{d.get('uf') or '—'}")
+    print()
+
+
 def relatorio(estado: dict, minimo: int) -> None:
     # A memória, não o radar. O radar guarda só o que ainda dá para disputar, e
     # aprender só com ele seria comparar os últimos três dias contra os últimos
@@ -212,7 +270,10 @@ def relatorio(estado: dict, minimo: int) -> None:
         print("  antes de concluir a primeira hipótese.")
     print()
 
-    # --- 6. o que fazer com isto -------------------------------------------
+    # --- 6. quem publica no PNCP, e quem devia publicar e não apareceu -----
+    censo_fontes(estado, len(rodadas))
+
+    # --- 7. o que fazer com isto -------------------------------------------
     print("--- O QUE FAZER COM ISTO ---")
     print("  1. Léxico: leve as palavras da seção 2 para tools/perfil.py, e")
     print("     acrescente um caso de ouro em tools/teste_perfil.py com um objeto")
@@ -221,6 +282,9 @@ def relatorio(estado: dict, minimo: int) -> None:
     print("     tiverem menos de sete letras. Um 'opera' sem \\b já derrubou o melhor")
     print("     edital de um dia inteiro.")
     print("  3. Órgãos recorrentes: viram prospecção ativa, não espera.")
+    print("  4. Fonte nova só se o censo mostrar o comprador AUSENTE do PNCP.")
+    print("     Se ele aparece lá e nunca chega ao radar, o trabalho é no filtro —")
+    print("     raspador para portal já coberto é caminho novo para o mesmo lugar.")
     print("  4. Rode a suíte. Se um caso de ouro quebrar, a mudança está errada —")
     print("     não o teste.")
 

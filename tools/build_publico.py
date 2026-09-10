@@ -92,11 +92,25 @@ def sanitiza(estado: dict) -> dict:
     # Lista de permissão, nunca de proibição: um campo novo e sensível que
     # alguém acrescente ao estado amanhã fica de fora por padrão, em vez de
     # vazar até alguém lembrar de proibi-lo.
-    # "memoria" é o caderno do filtro: todo edital que já passou pelo radar,
-    # inclusive os que fecharam. Serve a tools/aprende.py e a mais ninguém. Não
-    # vai para a página pública — nem por tamanho, nem por ser exatamente o
-    # retrovisor que o dono do radar pediu para tirar da tela.
-    limpo = {k: v for k, v in estado.items() if k not in ("auth", "memoria")}
+    #
+    # O comentário acima estava aqui desde o começo e o código fazia o oposto:
+    # excluía ("auth", "memoria") por nome e deixava passar tudo o mais. Em
+    # 10/09/2026 o estado ganhou `fontes_pncp` — o censo de quem publica — e ele
+    # teria ido para o repositório público sem ninguém decidir isso, que é
+    # exatamente o acidente contra o qual a nota advertia. Agora é lista de
+    # permissão de verdade: o que não estiver aqui não atravessa.
+    #
+    # Fica de fora, e por quê:
+    #   auth         hash de senha de administrador.
+    #   memoria      o caderno do filtro — todo edital que já passou pelo radar,
+    #                inclusive os fechados. Serve a tools/aprende.py e a mais
+    #                ninguém, e é o retrovisor que o dono do radar pediu para
+    #                tirar da tela.
+    #   fontes_pncp  o censo acumulado de compradores. Mesma razão da memória:
+    #                é insumo de aprendizado, não conteúdo de página, e cresce
+    #                todo dia.
+    PUBLICAS = ("versao", "atualizado_em", "editais", "rodadas", "fontes")
+    limpo = {k: v for k, v in estado.items() if k in PUBLICAS}
     limpo["editais"] = [
         {k: e[k] for k in CAMPOS_PUBLICOS if k in e}
         for e in estado.get("editais", [])

@@ -37,6 +37,7 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, str(Path(__file__).parent))
 from perfil import (avalia, normaliza, LIMIAR_CANDIDATO,        # noqa: E402
                     VALOR_MINIMO, vale_o_trabalho)
+from fontes import VIGILANCIA                                 # noqa: E402
 
 TZ = ZoneInfo("America/Sao_Paulo")
 BASE = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
@@ -302,6 +303,41 @@ def converte(reg: dict, aval: dict) -> dict:
     }
 
 
+def anota_censo(censo: dict, reg: dict, no_tema: bool) -> None:
+    """
+    Quem publicou, contado sobre o registro CRU — antes de qualquer corte.
+
+    A varredura passa por quase 39 mil contratações por noite e guarda menos de
+    cinquenta. A identidade das outras 38.950 é jogada fora, e ela responde de
+    graça a pergunta que mais custa responder de outro jeito: **este comprador
+    publica no PNCP?** Sem isso, "a ANEEL nunca apareceu" é ambíguo — pode ser
+    que ela não compre o nosso tema, pode ser que ela não publique aqui, e as
+    duas hipóteses pedem coisas opostas (mexer no filtro, ou escrever um
+    raspador). Com isso, deixa de ser ambíguo.
+
+    Não guarda todo mundo: seriam milhares de prefeituras por noite. Guarda
+    quem pontuou no tema — que é lista de prospecção — e quem está na
+    vigilância, cuja AUSÊNCIA é que é a informação.
+    """
+    org = reg.get("orgaoEntidade") or {}
+    cnpj = (org.get("cnpj") or "").strip()
+    if not cnpj:
+        return
+    if not no_tema and cnpj not in VIGILANCIA:
+        return
+    uni = reg.get("unidadeOrgao") or {}
+    c = censo.setdefault(cnpj, {
+        "nome": (org.get("razaoSocial") or "").strip(),
+        "uf": uni.get("ufSigla"),
+        "esfera": org.get("esferaId"),
+        "brutos": 0,
+        "tema": 0,
+    })
+    c["brutos"] += 1
+    if no_tema:
+        c["tema"] += 1
+
+
 def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     """
     A varredura por PUBLICAÇÃO: o que entrou no PNCP desde ontem.
@@ -331,6 +367,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
     vistos: set[str] = set()
     inexigiveis = 0            # aderentes ao tema, cortados por modalidade
     baratos = 0                # aderentes ao tema, cortados pelo piso de valor
+    censo: dict[str, dict] = {}   # quem publicou — ver anota_censo()
 
     for r in resultados:
         nome = MODALIDADES[r["modalidade"]]
@@ -348,6 +385,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
         for reg in r["brutos"]:
             aval = avalia(reg.get("objetoCompra"), reg.get("valorTotalEstimado"),
                           reg.get("modalidadeNome"), reg.get("informacaoComplementar"))
+            anota_censo(censo, reg, aval["score"] >= LIMIAR_CANDIDATO)
             if aval["score"] < max(min_score, LIMIAR_CANDIDATO):
                 continue
             cand = converte(reg, aval)
@@ -396,6 +434,7 @@ def coleta(d1: str, d2: str, min_score: int, trabalhadores: int = 4) -> dict:
             "inexigiveis_descartados": inexigiveis,
             "baratos_descartados": baratos,
             "valor_minimo": VALOR_MINIMO,
+            "censo": censo,
             "por_disputa": por_disputa,
             "min_score": max(min_score, LIMIAR_CANDIDATO),
             "por_modalidade": por_modalidade,
@@ -437,6 +476,7 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
     vistos: set[str] = set()
     inexigiveis = 0
     baratos = 0
+    censo: dict[str, dict] = {}   # quem publicou — ver anota_censo()
     erros: list[str] = []
 
     with ThreadPoolExecutor(max_workers=trabalhadores) as pool:
@@ -452,6 +492,7 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
             for reg in r["brutos"]:
                 aval = avalia(reg.get("objetoCompra"), reg.get("valorTotalEstimado"),
                               reg.get("modalidadeNome"), reg.get("informacaoComplementar"))
+                anota_censo(censo, reg, aval["score"] >= LIMIAR_CANDIDATO)
                 if aval["score"] < max(min_score, LIMIAR_CANDIDATO):
                     continue
                 cand = converte(reg, aval)
@@ -477,6 +518,7 @@ def coleta_abertas(min_score: int, trabalhadores: int = 4,
             "inexigiveis_descartados": inexigiveis,
             "baratos_descartados": baratos,
             "valor_minimo": VALOR_MINIMO,
+            "censo": censo,
             "erros": erros,
             "iniciado_em": inicio.isoformat(timespec="seconds"),
             "concluido_em": datetime.now(TZ).isoformat(timespec="seconds"),

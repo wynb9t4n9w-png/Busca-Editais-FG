@@ -38,8 +38,9 @@ CONTEUDO_MINIMO = 200  # bytes de innerHTML; painel vazio fica perto de zero
 # resposta certa — o que não pode é ficar vazia.
 CONTEUDO_MINIMO_ACOMP = 150
 
-# Campos que NÃO podem chegar à página pública.
-PROIBIDOS_ESTADO = ("auth",)
+# Campos que NÃO podem chegar à página pública. O sanitizador usa lista de
+# PERMISSÃO — este teste é a rede embaixo dela, e cresce quando o estado cresce.
+PROIBIDOS_ESTADO = ("auth", "memoria", "fontes_pncp")
 PROIBIDOS_EDITAL = ("status", "nota")
 
 def sonda(abas: tuple[str, ...]) -> str:
@@ -119,8 +120,14 @@ def confere_vazamento(html: str) -> list[str]:
     for campo in PROIBIDOS_ESTADO:
         if campo in estado:
             problemas.append(
-                f"o bloco '{campo}' foi para a página pública — ele carrega o hash "
-                "da senha de administrador."
+                f"o bloco '{campo}' foi para a página pública. "
+                + {"auth": "Ele carrega o hash da senha de administrador.",
+                   "memoria": "É o caderno do filtro, insumo de aprendizado, e "
+                              "o retrovisor que o dono do radar pediu para tirar "
+                              "da tela.",
+                   "fontes_pncp": "É o censo acumulado de compradores: insumo de "
+                                  "aprendizado, não conteúdo de página."}
+                  .get(campo, "Não está na lista de permissão do sanitizador.")
             )
     vazando: dict[str, int] = {}
     for e in estado.get("editais", []):

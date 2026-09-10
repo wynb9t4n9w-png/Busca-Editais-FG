@@ -401,6 +401,63 @@ zerados de maior valor eram obra, eventos, veterinária, concurso público, TI e
 móveis. Nenhum era oportunidade. O filtro estava certo; o alcance é que era
 curto.
 
+### O censo de fontes: "presente e não compra" ≠ "ausente"
+
+A pergunta volta toda semana em alguma forma — *não deveríamos caçar mais
+fontes? grandes estatais, governos estaduais, ANVISA, ANEEL, ANATEL?* — e ela
+não tem resposta sem um fato que ninguém tinha: **o comprador aparece no PNCP
+ou não?**
+
+Sem esse fato, "a ANEEL nunca apareceu no radar" é ambíguo, e as duas leituras
+pedem trabalhos opostos:
+
+| o que é verdade | o que fazer |
+|---|---|
+| aparece no PNCP e nunca vira candidato | mexer no **filtro** |
+| não aparece no PNCP | escrever uma **fonte** nova |
+
+Confundir as duas custa caro na direção mais cara: escrever um raspador para o
+portal de um órgão que já publica no PNCP é abrir caminho novo até um lugar
+onde o radar já está — trabalho que parece progresso e não move nada.
+
+O que a medição já mostrava, antes do censo: dos 42 órgãos distintos que o
+radar tinha visto, **6 eram governos estaduais** (Bahia, Ceará, Rio de Janeiro,
+SSP-SP, SEAP-PR, SEA-SC) e **4 eram estatais** (Dataprev, CAEMA, EMSERH, Portos
+RS) — todos vindos do PNCP, sem nenhuma fonte extra. Uma delas, a Agência de
+Fomento do ERJ, declara no próprio complemento estar sujeita à Lei 13.303/2016,
+o que responde de véspera a suspeita de que estatais ficariam de fora.
+
+**O censo é de graça, e é isso que o torna óbvio em retrospecto.** A varredura
+passa por quase 39 mil contratações por noite e guarda menos de cinquenta. A
+identidade das outras 38.950 era jogada fora sem ser olhada. `anota_censo()`
+conta o registro **cru**, antes de qualquer corte — e tem de ser antes, porque
+um censo que contasse depois do corte de score faria todo comprador que não
+compra consultoria parecer ausente do PNCP, que é exatamente o erro que ele
+existe para evitar.
+
+Guarda pouco de propósito: quem pontuou no tema, que é lista de prospecção, e
+quem está na lista de vigilância de `tools/fontes.py`, cuja **ausência** é que é
+a informação. As milhares de prefeituras que compram merenda não entram.
+
+`estado["fontes_pncp"]` acumula por rodada, e `dias` conta **rodadas em que o
+órgão apareceu**, não contratações — é esse número que separa "publicou uma vez"
+de "publica sempre". Quem não aparece hoje mantém a data antiga: zerar seria
+apagar a evidência do sumiço, e é o sumiço que se quer ver.
+
+O relatório de `tools/aprende.py` ganhou a seção correspondente, com a mesma
+disciplina de todas as outras: **propõe, não aplica.** E propõe fonte nova
+apenas quando a ausência é sustentada — nunca no primeiro dia, porque com
+poucas rodadas "não publica aqui" e "não publicou nada nestes dias" são
+indistinguíveis.
+
+Efeito colateral que valeu por si: ao acrescentar `fontes_pncp` ao estado,
+descobriu-se que `tools/build_publico.py` tinha um comentário dizendo *"lista de
+permissão, nunca de proibição"* sobre um código que fazia o oposto — excluía
+`auth` e `memoria` por nome e deixava passar todo o resto. O censo teria ido
+para o repositório público sem ninguém decidir isso, que é precisamente o
+acidente contra o qual a nota advertia. Agora é lista de permissão de verdade, e
+`tools/teste_pagina.py` cobre os três campos que não podem atravessar.
+
 ### Camada 2 — o que o PNCP não alcança
 
 O Sistema S (Sesc, Senac, Sesi, Senai, Sebrae) compra exatamente o portfólio da

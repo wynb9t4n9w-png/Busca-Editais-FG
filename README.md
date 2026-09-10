@@ -401,6 +401,60 @@ zerados de maior valor eram obra, eventos, veterinária, concurso público, TI e
 móveis. Nenhum era oportunidade. O filtro estava certo; o alcance é que era
 curto.
 
+### A camada 2 não está quebrada — está no açude errado
+
+Medido em 10/09/2026, sobre as 84 licitações que os seis portais do Sistema S
+devolveram naquela noite:
+
+```
+distribuição de score: {0: 84}
+```
+
+Zero em **todas**. Não "abaixo do limiar de 14": zero. E os objetos dizem por
+quê — legumes congelados, Smart TVs, cases para notebook, obra por empreitada
+global, licença Google, manutenção de gerador, vale-refeição, passagem de
+pedágio.
+
+A distribuição perfeitamente uniforme é o tipo de resultado que deveria levantar
+suspeita antes de virar conclusão, então foi conferida com controle: um objeto
+do nosso tema — *"consultoria para diagnóstico de cultura organizacional e
+desenvolvimento de líderes"* — passado pelo **mesmo caminho de código**, com o
+mesmo campo `objeto` dos itens reais, pontua **94**. Os extratores leem certo. O
+conteúdo é que não é nosso.
+
+Somando a semana: cerca de 595 licitações lidas do Sistema S renderam **um**
+candidato — a rede social corporativa do Sistema FIESC, julgada frio. Custo:
+uma fase por noite. Retorno: zero oportunidade utilizável.
+
+**A explicação estava escrita no próprio repositório, sobre o Sebrae:** *"entra
+pelo credenciamento, não pelo radar (…) porque consultoria vai toda para o
+SGF"*. O Sistema S compra consultoria — só que não por licitação. Compra por
+credenciamento de fornecedores, e é por isso que a aba de licitações deles é um
+catálogo de compras de bem.
+
+Testadas as portas desse outro canal, em 10/09/2026:
+
+| canal | resultado |
+|---|---|
+| `sgf.sebrae.com.br` | HTTP 403 |
+| Sebrae — portal de credenciamento | HTTP 200 e 164 KB de **casca JavaScript** ("You need to enable JavaScript to run this app"), zero conteúdo |
+| Senac DN — credenciamento | HTTP 403 |
+| Sesc DN — credenciamento | HTTP 404 |
+| SESI/SENAI-SP — compras | sem resposta |
+
+Ou seja: a fonte existe, é a certa, e **não é legível com a ferramenta atual**.
+A camada 2 é `urllib` puro; essas páginas exigem navegador. Há Chromium no
+ambiente e seria possível — ao custo de transformar uma fase de segundos numa
+fase de minutos, frágil, toda noite. Fica registrado como decisão em aberto, com
+a medição que a sustenta, e **não** como tarefa pendente: quem decidir isso
+precisa decidir também que o credenciamento é outro funil, sem prazo para
+disputar, que talvez mereça tela própria em vez de virar linha no Radar.
+
+O que **não** se deve concluir daqui é que a camada 2 deva morrer. Ela custa uma
+requisição por fonte, e é ela que faria alguém perceber se o Sesc começasse a
+licitar consultoria amanhã. O que ela não é — e a medição desmente — é uma
+aposta de crescimento.
+
 ### O censo de fontes: "presente e não compra" ≠ "ausente"
 
 A pergunta volta toda semana em alguma forma — *não deveríamos caçar mais

@@ -17,7 +17,16 @@ versionado, porque dá a impressão de estar documentado.
 
 ## Rotina 1 — Varredura diária, 02:00 (America/Sao_Paulo)
 
-Cron em UTC: `0 5 * * *`
+Cron em UTC: `0 5 * * *` · gatilho `trig_01XLJA4qDUWdTqnsgfSaTzLi` · presa à conversa `session_01EZ7ZSmV9ALhwazBVi3pYxp`
+
+**O gatilho não carrega o procedimento: ele aponta para cá.** A mensagem diária diz
+"dê `git pull`, leia a Rotina 1 do `ROTINAS.md` e execute do PASSO 1 ao 9", mais as
+quatro coisas que precisam valer mesmo se o arquivo não puder ser lido (a URL do
+artifact, o `capabilities` que não se passa, o não-escrever no repositório, e o
+`FALHA:` obrigatório). Isso só ficou possível em 11/09/2026, quando a rotina passou a
+rodar numa conversa que tem o repositório. Antes o texto abaixo existia em duas
+cópias — esta e a do agendamento — e a regra de trazer uma para a outra no mesmo
+commit era uma promessa. Agora é uma cópia só, e o arquivo é a que roda.
 
 Esta rotina foi reescrita em 05/09/2026, depois de uma varredura que rodou 3
 minutos e 45 segundos, terminou com status de sucesso e não publicou nada.
@@ -33,11 +42,12 @@ outro, e cada uma deixa arquivo no disco.
 > Destino único: o artifact privado, que é a fonte da verdade.
 > https://claude.ai/code/artifact/22647cdb-abec-49c7-a7cc-caa27d1af32b
 >
-> **Você NÃO escreve no repositório.** Sessões criadas por gatilho nascem com
-> `sources: []` — sem o repositório nas fontes autorizadas — e o push é
-> recusado. Ler funciona mesmo assim, porque o repositório é público: o PASSO 2
-> traz o clone pronto. A página pública é da rotina das 04:00. Não faça commit,
-> não faça push, não rode `tools/build_publico.py`.
+> **Você roda numa conversa fixa que já tem o repositório.** Ele está no disco,
+> atualizado pelo PASSO 2 — você não precisa cloná-lo. **Mesmo assim não escreve
+> nele:** a página pública pertence à rotina das 04:00, e duas rotinas mexendo
+> no mesmo arquivo é conflito garantido. Não faça commit, não faça push, não
+> rode `tools/build_publico.py`. Isso é divisão de trabalho, não falta de
+> permissão — a diferença importa no dia em que algo for negado.
 >
 > **O que se espera de você:** encontrar oportunidade REAL para o portfólio da
 > Thutor — edital ainda disputável, escopo aderente, porte que sustente o ticket.
@@ -57,28 +67,40 @@ outro, e cada uma deixa arquivo no disco.
 > `FALHA:`, cole o erro, e diga que nada foi publicado hoje.
 >
 > ### PASSO 2 — A rodada determinística
+> O repositório já está no disco desta conversa. Dois comandos, **um de cada
+> vez, cada um na sua chamada** — nunca colados numa linha só:
 > ```
-> cd /home/user/Busca-Editais-FG 2>/dev/null || \
->   git clone https://github.com/wynb9t4n9w-png/Busca-Editais-FG.git \
->       /home/user/Busca-Editais-FG && cd /home/user/Busca-Editais-FG
+> git pull --rebase
+> ```
+> ```
 > python3 tools/rodada.py <caminho do HTML do artifact>
 > ```
 >
-> **O repositório é `wynb9t4n9w-png/Busca-Editais-FG`, e é público** — o clone
-> acima funciona sem credencial nenhuma, mesmo numa sessão que não tenha o
-> repositório nas fontes autorizadas, e é só para **ler** `tools/`: continua
-> valendo não fazer commit nem push.
+> **Se qualquer comando for NEGADO por permissão, pare e responda começando com
+> `FALHA: comando negado`**, colando o comando EXATO que recebeu a negação e a
+> mensagem EXATA que voltou. Não tente contornar: não copie os scripts para
+> outro diretório, não reescreva a rodada à mão, não troque o comando por um
+> equivalente. A mensagem é o único dado que conserta, e três dias deste projeto
+> já foram gastos diagnosticando pela etapa errada.
 >
-> A URL está por extenso de propósito. Em 10/09/2026 a rodada morreu aqui porque
-> esta linha dizia apenas "clone se faltar", sem dizer *o quê*: a sessão gastou o
-> orçamento inteiro tentando adivinhar o dono — `jgfontao`, `thutor`,
-> `thutor-consultoria`, `valantien/monitor-editais` —, concluiu que o repositório
-> era privado e inacessível, e não publicou nada. Nenhuma permissão faltava.
-> Faltava o nome.
+> Esta seção já matou duas rodadas, cada vez por um motivo diferente, e as duas
+> ficam registradas porque as duas voltam se forem esquecidas:
 >
-> Se ainda assim o clone falhar, **não fique tentando variações do nome**:
-> responda começando com `FALHA: clone recusado`, cole o erro exato do git, e
-> diga que o repositório é `https://github.com/wynb9t4n9w-png/Busca-Editais-FG`.
+> · **10/09/2026** — a instrução dizia só "clone se faltar", sem dizer *o quê*.
+>   A sessão gastou o orçamento inteiro adivinhando o dono (`jgfontao`,
+>   `thutor`, `thutor-consultoria`, `valantien/monitor-editais`), concluiu que o
+>   repositório era privado e não publicou nada. Nenhuma permissão faltava:
+>   faltava o nome.
+> · **11/09/2026** — o nome estava lá e o clone funcionou. O que foi negado foi
+>   `python3 tools/rodada.py`. A sessão concluiu que o ambiente bloqueia
+>   executar código de diretório não autorizado, e baseou isso num teste que não
+>   provava nada (`python3 -c "print(...)"` é negado de qualquer jeito, porque a
+>   lista de `.claude/settings.json` libera scripts nomeados, não o interpretador).
+>   A causa real é de arquitetura: sessão criada por gatilho nasce sem o
+>   repositório nas fontes **e** em modo de permissão `default`, onde tudo fora
+>   da lista espera resposta de uma pessoa — e às 02:00 não há pessoa. Desde
+>   11/09 esta rotina roda em conversa fixa, que é o mesmo mecanismo da rotina
+>   das 04:00, a única que nunca falhou por permissão.
 >
 > Um comando faz seis fases: suíte, **as duas varreduras do PNCP**, a camada 2,
 > conferência item a item na fonte, e a fusão com o estado anterior — que
@@ -277,20 +299,27 @@ outro, e cada uma deixa arquivo no disco.
 
 Cron em UTC: `0 7 * * *` · gatilho `trig_012RxsqvKz1ivmocrGZi2pud` (v3) · presa à conversa `session_017BXpt2HuGTEHkC9QKLhABx`
 
-Esta é a única peça do sistema que escreve no repositório, e por isso é a única
-que roda numa **conversa fixa** (`persistent_session_id`): ela foi criada com o
+Esta é a única peça do sistema que escreve no repositório, e foi a primeira a
+rodar numa **conversa fixa** (`persistent_session_id`): ela foi criada com o
 repositório anexado como fonte e como destino, o que é o que dá permissão de
-push. A varredura das 02:00 roda em sessão nova todo dia e não tem essa
-permissão — nem precisa ter, porque só lê.
+push.
 
-**Sessão de gatilho não herda as fontes de quem criou o gatilho.** Medido em
+**Sessão de gatilho não herda nada de quem criou o gatilho.** Medido em
 10/09/2026: um gatilho criado a partir da sessão que *tem* o repositório
 anexado nasce com `sources: []` do mesmo jeito, e nem `create_trigger` nem
-`update_trigger` expõem parâmetro para mudar isso. Só há duas formas de uma
-rotina alcançar o repositório: prendê-la a uma conversa que já o tenha — o que
-esta faz —, ou clonar de uma URL pública, que é o que a das 02:00 faz desde
-10/09. Quem for criar uma terceira rotina precisa escolher uma das duas de
-propósito; não existe terceira.
+`update_trigger` expõem parâmetro para mudar isso. Em 11/09/2026 apareceu a
+segunda metade da mesma herança faltante, e é a que custou o dia: a sessão nova
+nasce também em `permission_mode: default`, onde qualquer comando fora de
+`.claude/settings.json` fica esperando uma pessoa autorizar. Às 02:00 não há
+pessoa, e esperar é o mesmo que ser negado.
+
+Clonar de URL pública resolve metade do problema e não a outra: em 11/09 o
+clone funcionou e `python3 tools/rodada.py` foi negado mesmo assim. **Então
+sobrou uma forma só**: prender a rotina a uma conversa criada com o repositório
+anexado — que herda as fontes e o modo de permissão de quem a criou. É o que as
+duas rotinas fazem desde 11/09/2026. Quem for criar uma terceira não tem
+escolha a fazer: crie a conversa primeiro, prove nela que `python3 tools/…`
+roda, e só então aponte o gatilho para ela.
 
 O prompt completo do procedimento vive dentro daquela conversa, estabelecido na
 primeira mensagem; o gatilho diário só a acorda com um lembrete curto. Se a
@@ -384,3 +413,51 @@ silêncio é indistinguível de uma que deu certo.
 > precisou reparo, a data da rodada, quantos quentes há em aberto, e o link
 > público. Se reparou, diga que a varredura das 02:00 não fechou o ciclo sozinha
 > — essa informação importa para o dono do projeto.
+
+---
+
+## Rotina 3 — Alarme, 05:00 (America/Sao_Paulo)
+
+Cron em UTC: `0 8 * * *` · gatilho `trig_01EWkn3Kj44yPG6rqJnVdzCY` · **sessão nova a cada disparo**
+
+Esta rotina não coleta, não publica e não toca no repositório. Ela lê o artifact,
+compara `atualizado_em` com a data de hoje e responde uma linha. É a rotina mais
+boba das três, e é a que faltava.
+
+**Por que ela existe, e por que precisa ser de sessão nova.** Medido em
+11/09/2026, nos oito gatilhos da conta: **toda rotina presa a uma conversa fixa
+tem `notifications: null`; toda rotina que dispara push é de sessão nova.** O
+padrão não tem exceção. Isso é uma troca dura, e ela não estava escrita em lugar
+nenhum:
+
+| | alcança o repositório | avisa uma pessoa |
+|---|---|---|
+| conversa fixa (`persistent_session_id`) | **sim** | não |
+| sessão nova a cada disparo | não | **sim** |
+
+As rotinas 1 e 2 escolheram o repositório, porque sem ele não há rodada. O preço
+é que nenhuma das duas consegue tocar a campainha: em 05/09, 06/09, 10/09 e
+11/09/2026 o radar perdeu o dia, e nas quatro vezes quem descobriu foi o dono do
+projeto abrindo a página. Em 11/09 havia até um `FALHA:` bem escrito na resposta
+da varredura — a rotina daquele dia era de sessão nova e o push saiu —, mas isso
+foi sorte de arquitetura, não desenho: era a mesma sessão nova que não conseguia
+rodar `tools/rodada.py`. Não dava para ter as duas coisas na mesma rotina.
+
+Então separou-se quem faz de quem avisa. A Rotina 3 não precisa do repositório —
+`action:"read"` no artifact basta —, e por isso pode ser de sessão nova sem
+perder nada. Ela custa uma leitura por dia e fecha o buraco de seis dias.
+
+**05:00 e não 04:30.** A varredura publica entre 02:38 e 03:06; o resgate das
+04:00 leva de 30 a 45 minutos se precisar refazer a rodada inteira. Às 05:00 as
+duas já terminaram, e ainda sobram três horas antes de alguém abrir a página. Um
+alarme que toca antes de a última chance ter passado é um alarme que ensina a ser
+ignorado.
+
+**A única resposta proibida é o silêncio** — inclusive quando a própria leitura
+do artifact falhar. Um alarme que não toca é pior que alarme nenhum, porque
+ocupa o lugar de um que tocaria.
+
+> O prompt completo está no gatilho, e não aqui, de propósito: sessão nova nasce
+> sem o repositório e não conseguiria ler este arquivo. É a única das três em que
+> o texto do agendamento é a fonte — e por isso ele é curto o bastante para ser
+> conferido de olho no painel.

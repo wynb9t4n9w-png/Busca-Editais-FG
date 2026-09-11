@@ -8,6 +8,7 @@
       "Bash(python3 tools/valida_rodada.py:*)",
       "Bash(python3 tools/teste_pagina.py:*)",
       "Bash(python3 tools/testes.py:*)",
+      "Bash(python3 tools/aprende.py:*)",
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
       "Bash(git add:*)",
@@ -17,6 +18,7 @@
       "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git diff:*)",
+      "Bash(git clone:*)",
       "Artifact"
     ]
   }

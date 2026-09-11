@@ -67,14 +67,27 @@ outro, e cada uma deixa arquivo no disco.
 > `FALHA:`, cole o erro, e diga que nada foi publicado hoje.
 >
 > ### PASSO 2 — A rodada determinística
-> O repositório já está no disco desta conversa. Dois comandos, **um de cada
+> O repositório já está no disco desta conversa. Quatro comandos, **um de cada
 > vez, cada um na sua chamada** — nunca colados numa linha só:
+> ```
+> git fetch origin
+> ```
+> ```
+> git checkout claude/epic-goodall-he30lz
+> ```
 > ```
 > git pull --rebase
 > ```
 > ```
 > python3 tools/rodada.py <caminho do HTML do artifact>
 > ```
+>
+> **O `checkout` não é excesso de zelo.** Conversa criada com o repositório como
+> fonte nasce com o HEAD destacado no commit do dia da criação — medido em
+> 11/09/2026, poucos minutos depois de esta conversa existir: `HEAD detached at
+> 95844b5`. Nesse estado `git pull --rebase` falha, e falha calado o bastante
+> para parecer outra coisa. Se o nome do ramo aqui não existir mais, rode
+> `git branch -r` e use o que o `origin/HEAD` apontar — não invente um nome.
 >
 > **Se qualquer comando for NEGADO por permissão, pare e responda começando com
 > `FALHA: comando negado`**, colando o comando EXATO que recebeu a negação e a

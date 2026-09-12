@@ -474,3 +474,16 @@ ocupa o lugar de um que tocaria.
 > sem o repositório e não conseguiria ler este arquivo. É a única das três em que
 > o texto do agendamento é a fonte — e por isso ele é curto o bastante para ser
 > conferido de olho no painel.
+
+**No primeiro disparo, 12/09/2026, o alarme fez o trabalho e errou o número.**
+Detectou o atraso, escreveu `FALHA:` na primeira linha, mandou o push às 05:05 —
+a primeira vez em sete dias que o sistema avisou sozinho. E reportou "2 editais
+quentes" quando havia **1**: Barueri, contado uma vez em `editais` e outra em
+`memoria`, porque a contagem saiu de procurar o texto `"veredito": "quente"` no
+arquivo inteiro em vez de percorrer a lista do radar.
+
+O erro é pequeno e o estrago não é. Este alarme só serve enquanto alguém acredita
+nele; é a mesma lição de 09/09, quando o vigia afirmou que `.claude/settings.json`
+não existia. O prompt passa a dizer onde contar, por que `memoria` dobra o
+número, e que **"não consegui contar os quentes" é resposta melhor que um número
+errado**.
